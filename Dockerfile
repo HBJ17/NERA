@@ -24,5 +24,5 @@ COPY . .
 # Expose default port (Railway dynamically overrides $PORT)
 EXPOSE 8000
 
-# Start FastAPI server using Uvicorn with dynamic $PORT support
-CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
+# Start FastAPI server using python run.py
+CMD ["python", "run.py"]

@@ -64,4 +64,10 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("app.main:app", host=settings.HOST, port=settings.PORT, reload=settings.DEBUG)
+    raw_port = os.environ.get("PORT", str(settings.PORT))
+    try:
+        port = int(raw_port)
+    except (ValueError, TypeError):
+        port = 8000
+    host = os.environ.get("HOST", settings.HOST)
+    uvicorn.run("app.main:app", host=host, port=port, reload=settings.DEBUG)
