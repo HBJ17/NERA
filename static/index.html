@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NERA | AI Logistics & Disaster Resilience Engine</title>
+  <meta name="description" content="NERA: AI-Enabled Logistics Intelligence and Resilient Supply Chain Platform for the North Eastern Region of India based on Digital Twin Architecture.">
+  
+  <!-- Google Fonts: Outfit & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <!-- Custom Stylesheet -->
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+
+  <!-- Top Command Header -->
+  <header class="header-command">
+    <div class="brand-section">
+      <div class="brand-logo-glow">🚚</div>
+      <div>
+        <div class="brand-title">
+          NERA
+          <span class="brand-badge">AI LIVE v2.0</span>
+        </div>
+        <div style="font-size: 0.72rem; color: var(--text-muted);">
+          North Eastern Resilience & Autonomous Logistics Engine
+        </div>
+      </div>
+    </div>
+
+    <!-- Center Persona Switcher -->
+    <div class="header-center-controls">
+      <div class="persona-switcher">
+        <button class="persona-btn active" onclick="switchPersona('sdma', this)">
+          👨‍💼 SDMA / Govt
+        </button>
+        <button class="persona-btn" onclick="switchPersona('fleet', this)">
+          🚚 Fleet Operator
+        </button>
+        <button class="persona-btn" onclick="switchPersona('driver', this)">
+          🚛 Driver HUD
+        </button>
+        <button class="persona-btn" onclick="switchPersona('supplies', this)">
+          🏪 Essential Supplies
+        </button>
+      </div>
+    </div>
+
+    <!-- Header Right Actions -->
+    <div class="header-actions">
+      <button class="btn-simulation-glow" onclick="document.querySelector('[data-tab=\'simulation\']').click()">
+        💥 WHAT-IF SIMULATION
+      </button>
+      
+      <button class="btn-report-hazard" onclick="openFieldReportModal()">
+        📷 REPORT HAZARD
+        <span id="offline-queue-count" style="display: none; background: var(--accent-red); color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 99px; font-family: var(--font-mono);">0</span>
+      </button>
+
+      <!-- Language Selector -->
+      <select class="lang-select-dropdown" onchange="setAppLanguage(this.value)">
+        <option value="en">🇬🇧 English</option>
+        <option value="as">অসমীয়া (Assamese)</option>
+        <option value="hi">हिन्दी (Hindi)</option>
+        <option value="bn">বাংলা (Bengali)</option>
+      </select>
+
+      <div class="time-telemetry">
+        <span class="live-indicator">
+          <span class="pulsing-dot"></span> SATELLITE LINK ACTIVE
+        </span>
+        <span id="live-time-display">--:--:-- IST</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Realtime Emergency Alert Ticker -->
+  <div class="alert-ticker-bar">
+    <div class="ticker-tag">🚨 ALERT TICKER</div>
+    <div class="ticker-content" id="ticker-message-text">
+      Connecting to NER Disaster Telemetry and Doppler Radar Feeds...
+    </div>
+    <button class="ticker-voice-btn" onclick="playTopAlertAudio()">
+      🔊 Voice Broadcast
+    </button>
+    <button class="ticker-voice-btn" onclick="openAlertsModal()">
+      📜 All Bulletins
+    </button>
+  </div>
+
+  <!-- Main App Workspace -->
+  <main class="app-workspace">
+    <!-- Map Viewport -->
+    <section class="map-viewport">
+      <div id="leaflet-map"></div>
+
+      <!-- Floating Map Layer Controls -->
+      <div class="map-floating-layers">
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('highways', this)">
+          🛣️ Highways
+        </button>
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('bridges', this)">
+          🌉 Bridges
+        </button>
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('fleet', this)">
+          🚚 Active Fleet
+        </button>
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('districts', this)">
+          📍 Districts
+        </button>
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('hazards', this)">
+          ⛰️ Landslide Zones
+        </button>
+      </div>
+
+      <!-- Map Bottom HUD Telemetry -->
+      <div class="map-hud-stats">
+        <div class="hud-stat-card">
+          <span class="hud-stat-title">Active Freight</span>
+          <span class="hud-stat-value" id="hud-active-trucks">12 Trucks</span>
+        </div>
+        <div class="hud-stat-card">
+          <span class="hud-stat-title">District Connectivity</span>
+          <span class="hud-stat-value" style="color: var(--accent-green);" id="hud-connected-districts">30/32</span>
+        </div>
+        <div class="hud-stat-card">
+          <span class="hud-stat-title">NER Threat Level</span>
+          <span class="hud-stat-value" style="color: var(--accent-amber); font-size: 0.95rem;" id="hud-threat-level">ORANGE WARNING</span>
+        </div>
+        <div class="hud-stat-card">
+          <span class="hud-stat-title">Active Blockades</span>
+          <span class="hud-stat-value" style="color: var(--accent-red);" id="hud-active-disruptions">2</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Side Command Cockpit -->
+    <aside class="side-cockpit">
+      <!-- Tabs Header -->
+      <div class="cockpit-tabs-header">
+        <button class="cockpit-tab-btn active" data-tab="twin" onclick="switchTab('twin', this)">
+          🌐 Digital Twin
+        </button>
+        <button class="cockpit-tab-btn" data-tab="simulation" onclick="switchTab('simulation', this)">
+          💥 Simulation
+        </button>
+        <button class="cockpit-tab-btn" data-tab="prediction" onclick="switchTab('prediction', this)">
+          🤖 AI Predictor
+        </button>
+        <button class="cockpit-tab-btn" data-tab="routing" onclick="switchTab('routing', this)">
+          🗺️ Smart Routing
+        </button>
+        <button class="cockpit-tab-btn" data-tab="supplies" onclick="switchTab('supplies', this)">
+          🏥 Hospital Supplies
+        </button>
+        <button class="cockpit-tab-btn" data-tab="reports" onclick="switchTab('reports', this)">
+          📱 Field Feeds
+        </button>
+      </div>
+
+      <!-- Tab Panes Body -->
+      <div class="cockpit-body">
+        
+        <!-- TAB 1: DIGITAL TWIN OVERVIEW -->
+        <div id="tab-twin" class="cockpit-tab-pane" style="display: flex; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>District Connectivity Health Matrix</span>
+              <span class="badge" style="background: rgba(0,255,136,0.15); color: var(--accent-green);">32 NODES</span>
+            </div>
+            <div class="district-grid" id="district-matrix-grid">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>Active Freight Telemetry & Tracking</span>
+              <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--accent-cyan);">LIVE GPS</span>
+            </div>
+            <div class="fleet-list" id="fleet-telemetry-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: WHAT-IF SIMULATION SANDBOX -->
+        <div id="tab-simulation" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>💥 "What-If" Scenario Stress Simulator</span>
+              <span class="badge" style="background: rgba(255,51,102,0.2); color: var(--accent-red);">PHYSICS ENGINE</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+              Simulate critical bridge failures or massive landslides to assess supply chain breakdown, isolated districts, and generate AI detour corridors.
+            </div>
+
+            <div class="scenario-selector-box" id="scenarios-container">
+              <!-- Scenarios loaded via JS -->
+            </div>
+
+            <button id="btn-run-simulation" class="btn-simulation-glow" style="width: 100%; justify-content: center;" onclick="triggerWhatIfSimulation()">
+              💥 Execute What-If Stress Simulation
+            </button>
+          </div>
+
+          <!-- Simulation Results Box -->
+          <div id="sim-result-box" class="cockpit-card" style="display: none; border-color: var(--accent-red);">
+            <div class="cockpit-card-title" style="color: var(--accent-red);" id="sim-title-heading">
+              Simulation Results
+            </div>
+            <div style="font-size: 0.78rem; color: #fca5a5;" id="sim-incident-loc"></div>
+
+            <div class="impact-metrics-grid">
+              <div class="impact-metric-card">
+                <span class="impact-metric-title">Isolated Districts</span>
+                <span class="impact-metric-value" style="color: #ff3366;" id="sim-isolated-count">0</span>
+              </div>
+              <div class="impact-metric-card">
+                <span class="impact-metric-title">Affected Population</span>
+                <span class="impact-metric-value" id="sim-pop-affected">0</span>
+              </div>
+              <div class="impact-metric-card">
+                <span class="impact-metric-title">Delayed Freight Convoys</span>
+                <span class="impact-metric-value" style="color: #ffb800;" id="sim-delayed-trucks">0</span>
+              </div>
+              <div class="impact-metric-card">
+                <span class="impact-metric-title">Critical Oxygen at Risk</span>
+                <span class="impact-metric-value" style="color: #00f0ff;" id="sim-oxygen-at-risk">0 L</span>
+              </div>
+            </div>
+
+            <div style="font-weight: 700; color: #fff; font-size: 0.85rem; margin-top: 4px;">
+              🔴 Isolated District Relief Status:
+            </div>
+            <div id="sim-isolated-districts-list"></div>
+
+            <div style="font-weight: 700; color: #fff; font-size: 0.85rem; margin-top: 4px;">
+              🚚 Trapped / Delayed Freight:
+            </div>
+            <div id="sim-delayed-trucks-list"></div>
+
+            <div style="font-weight: 700; color: #fff; font-size: 0.85rem; margin-top: 4px;">
+              🚨 Emergency Action Directives:
+            </div>
+            <ul id="sim-recommendations-list" style="padding-left: 18px;"></ul>
+
+            <button class="btn-primary" style="margin-top: 10px;" onclick="deployEmergencyReroutePlan()">
+              ⚡ Deploy AI Emergency Reroute Plan
+            </button>
+          </div>
+        </div>
+
+        <!-- TAB 3: AI PREDICTION SUITE -->
+        <div id="tab-prediction" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>🤖 Landslide Hazard AI Predictor</span>
+              <span id="pred-risk-tier" class="badge">ANALYZING</span>
+            </div>
+
+            <!-- Sliders -->
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>24h Catchment Rainfall (mm)</span>
+                <span class="value" id="val-rainfall">85 mm</span>
+              </div>
+              <input type="range" id="slider-rainfall" min="0" max="300" value="85">
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>Terrain Hill Slope Gradient (°)</span>
+                <span class="value" id="val-slope">32°</span>
+              </div>
+              <input type="range" id="slider-slope" min="0" max="60" value="32">
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>Soil Volumetric Saturation (%)</span>
+                <span class="value" id="val-soil">72%</span>
+              </div>
+              <input type="range" id="slider-soil" min="0" max="100" value="72">
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>Historical Landslides (10-Yr Count)</span>
+                <span class="value" id="val-history">4 Events</span>
+              </div>
+              <input type="range" id="slider-history" min="0" max="10" value="4">
+            </div>
+
+            <!-- AI Meter Box -->
+            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; text-align: center;">
+              <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Predicted Landslide Probability</div>
+              <div id="pred-risk-meter" style="font-family: var(--font-mono); font-size: 2.4rem; font-weight: 800; color: #ffb800; margin: 4px 0;">--%</div>
+              <div id="pred-action-protocol" style="font-size: 0.78rem; color: #f8fafc; line-height: 1.3;">Loading AI inference...</div>
+            </div>
+
+            <!-- Factor Importance Doughnut Chart -->
+            <div style="font-size: 0.8rem; font-weight: 700; color: #fff; margin-top: 6px;">
+              📊 Factor Importance Weights
+            </div>
+            <div style="height: 180px; position: relative;">
+              <canvas id="chart-factor-weights"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: SMART DYNAMIC ROUTING -->
+        <div id="tab-routing" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>🗺️ Resilient Route Optimizer</span>
+              <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--accent-cyan);">DYNAMIC A*</span>
+            </div>
+
+            <div class="route-select-row">
+              <select id="route-source-select" class="route-dropdown"></select>
+            </div>
+            <div style="text-align: center; color: var(--text-muted); font-size: 14px;">⬇️</div>
+            <div class="route-select-row">
+              <select id="route-dest-select" class="route-dropdown"></select>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 8px; font-size: 0.8rem; color: var(--text-secondary); cursor: pointer;">
+              <input type="checkbox" id="chk-avoid-hazards" checked>
+              <span>Avoid High-Risk Slopes & Warning Sectors</span>
+            </label>
+
+            <button id="btn-calculate-route" class="btn-primary" onclick="planSmartRoute()">
+              🗺️ Calculate AI Optimal Route
+            </button>
+          </div>
+
+          <!-- Route Results Container -->
+          <div id="route-results-container" class="cockpit-card" style="display: none;">
+            <div class="cockpit-card-title" id="route-rec-title" style="color: var(--accent-cyan);">
+              AI Safe Corridor Route
+            </div>
+            <div id="route-weather-adv" style="font-size: 0.75rem; color: #94a3b8;"></div>
+
+            <div class="impact-metrics-grid" style="margin: 8px 0;">
+              <div class="impact-metric-card" style="background: rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.25);">
+                <span class="impact-metric-title" style="color: #67e8f9;">Total Distance</span>
+                <span class="impact-metric-value" id="route-rec-dist">-- km</span>
+              </div>
+              <div class="impact-metric-card" style="background: rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.25);">
+                <span class="impact-metric-title" style="color: #67e8f9;">Transit Time</span>
+                <span class="impact-metric-value" id="route-rec-time">-- hrs</span>
+              </div>
+              <div class="impact-metric-card" style="background: rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.25);">
+                <span class="impact-metric-title" style="color: #67e8f9;">Aggregate Risk</span>
+                <span class="impact-metric-value" id="route-rec-risk">--/100</span>
+              </div>
+              <div class="impact-metric-card" style="background: rgba(0,255,136,0.08); border-color: rgba(0,255,136,0.25);">
+                <span class="impact-metric-title" style="color: #86efac;">AI Advantage</span>
+                <span class="impact-metric-value" style="color: #00ff88; font-size: 1rem;" id="route-risk-reduction">--</span>
+              </div>
+            </div>
+
+            <div style="font-size: 0.75rem; color: var(--accent-cyan); font-family: var(--font-mono);" id="route-time-delta"></div>
+
+            <div style="font-weight: 700; color: #fff; font-size: 0.85rem; margin-top: 6px;">
+              Turn-by-Turn Navigation:
+            </div>
+            <div class="turn-list" id="route-turn-steps"></div>
+          </div>
+        </div>
+
+        <!-- TAB 5: ESSENTIAL SUPPLIES RUNWAY -->
+        <div id="tab-supplies" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>🏥 Hospital Essential Supplies Runway</span>
+              <span class="badge" style="background: rgba(157,78,221,0.2); color: #c77dff;">CRITICAL INVENTORY</span>
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-secondary);">
+              Monitoring survival stock runway (Liquid Oxygen, ICU Antibiotics, Vaccines, Food Rations) across key North East hospitals.
+            </div>
+
+            <div id="supplies-hospital-list">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 6: FIELD REPORTING FEEDS -->
+        <div id="tab-reports" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>📱 PWD & Citizen Field Incident Feeds</span>
+              <button class="btn-report-hazard" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openFieldReportModal()">
+                + New Report
+              </button>
+            </div>
+
+            <button class="btn-secondary" style="font-size: 0.78rem; padding: 6px 12px; justify-content: center;" onclick="syncOfflineReports()">
+              🔄 Sync Offline Cache Queue
+            </button>
+
+            <div id="field-reports-timeline" style="margin-top: 10px;">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+  </main>
+
+  <!-- MODAL: REPORT FIELD INCIDENT -->
+  <div class="modal-backdrop" id="modal-field-report">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">📷 Field Official / Driver Road Incident Report</div>
+        <button class="modal-close-btn" onclick="closeFieldReportModal()">&times;</button>
+      </div>
+      <form class="modal-body" onsubmit="handleFieldReportSubmit(event)">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Officer / Driver Name</label>
+            <input type="text" id="rpt-officer-name" class="route-dropdown" style="width: 100%;" required value="Sub-Divisional Engineer PWD">
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Department</label>
+            <select id="rpt-department" class="route-dropdown" style="width: 100%;">
+              <option>PWD Engineer</option>
+              <option>Traffic Police</option>
+              <option>NDRF Battalion</option>
+              <option>Commercial Driver</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Disaster Incident Type</label>
+            <select id="rpt-incident-type" class="route-dropdown" style="width: 100%;">
+              <option>Landslide / Mudflow</option>
+              <option>Flash Flood / Inundation</option>
+              <option>Bridge Damaged / Submerged</option>
+              <option>Boulder Rockfall</option>
+              <option>Road Embankment Cave-in</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Severity Level</label>
+            <select id="rpt-severity" class="route-dropdown" style="width: 100%;">
+              <option value="HIGH">HIGH (Single Lane Blocked)</option>
+              <option value="BLOCKING">BLOCKING (Total Road Severed)</option>
+              <option value="MEDIUM">MEDIUM (Caution - Slow Traffic)</option>
+              <option value="LOW">LOW (Debris on Shoulder)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Nearest Highway Corridor</label>
+            <select id="rpt-highway" class="route-dropdown" style="width: 100%;">
+              <option>NH-27 (Haflong / Lumding Section)</option>
+              <option>NH-13 (Sela Pass / Tawang Highway)</option>
+              <option>NH-10 (Teesta Gorge / Sikkim)</option>
+              <option>NH-06 (Guwahati - Shillong)</option>
+              <option>NH-29 (Dimapur - Kohima)</option>
+              <option>NH-37 (Silchar - Imphal)</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size: 0.75rem; color: var(--text-muted);">Specific Location Tag</label>
+            <input type="text" id="rpt-location" class="route-dropdown" style="width: 100%;" required value="Km 142 near Jatinga Valley">
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size: 0.75rem; color: var(--text-muted);">Incident Description & Clearance Status</label>
+          <textarea id="rpt-desc" class="route-dropdown" style="width: 100%; height: 75px;" required>Hill cutting gave way after continuous rainfall. Approximately 35 meters covered in slush and boulders. Heavy machinery requested.</textarea>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.3); border: 1px dashed var(--border-subtle); border-radius: var(--radius-md); padding: 12px; text-align: center;">
+          <span style="font-size: 20px;">📸</span>
+          <div style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 4px;">
+            Geotagged Photo Attached (Simulated GPS 25.176°N, 93.018°E)
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+          <button type="button" class="btn-secondary" onclick="closeFieldReportModal()">Cancel</button>
+          <button type="submit" class="btn-primary">Submit to Digital Twin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: MULTILINGUAL EMERGENCY BULLETINS -->
+  <div class="modal-backdrop" id="modal-alerts-broadcast">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">🚨 Multilingual Emergency Alert Broadcasts</div>
+        <button class="modal-close-btn" onclick="closeAlertsModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="alerts-modal-list">
+        <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <!-- App JS Modules -->
+  <script src="/static/js/map.js"></script>
+  <script src="/static/js/simulation.js"></script>
+  <script src="/static/js/routing.js"></script>
+  <script src="/static/js/prediction.js"></script>
+  <script src="/static/js/supplies.js"></script>
+  <script src="/static/js/fieldReport.js"></script>
+  <script src="/static/js/alerts.js"></script>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>
