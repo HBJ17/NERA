@@ -1,0 +1,11 @@
+services:
+  ner-digital-twin:
+    build: .
+    image: ner-logistics-digital-twin:latest
+    container_name: ner_digital_twin_app
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - DEBUG=True
+    restart: unless-stopped
