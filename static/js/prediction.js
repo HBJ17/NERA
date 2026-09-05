@@ -1,9 +1,11 @@
 /**
  * NERA (North Eastern Resilience & Autonomous Logistics Engine)
- * Module 4 & 5: AI Hazard Prediction UI Controller & Chart.js Visualizer
+ * Module 13, 14 & 16: AI Predictive Risk Modeling, Doppler Weather Engine & 4-Stream Data Fusion
  * 
- * Synchronizes real-time geotechnical slider inputs with backend prediction models,
- * dynamically rendering failure probabilities, action protocols, and factor contributions.
+ * Features:
+ * - Physics-informed AI Landslide & Flood Hazard Prediction
+ * - Live Doppler Weather Radar Layer Rendering on Leaflet
+ * - 4-Stream Composite Risk Index (CRI) Fusion Telemetry
  */
 let factorChart = null;
 
@@ -19,15 +21,20 @@ function initPredictionControls() {
     }
   });
 
-  // Initial trigger
   predictLandslideRisk();
+  loadWeatherRadarAndFusion();
 }
 
 function onPredictionSliderChange() {
-  document.getElementById('val-rainfall').innerText = `${document.getElementById('slider-rainfall').value} mm`;
-  document.getElementById('val-slope').innerText = `${document.getElementById('slider-slope').value}°`;
-  document.getElementById('val-soil').innerText = `${document.getElementById('slider-soil').value}%`;
-  document.getElementById('val-history').innerText = `${document.getElementById('slider-history').value} Events`;
+  const r = document.getElementById('slider-rainfall');
+  const s = document.getElementById('slider-slope');
+  const soil = document.getElementById('slider-soil');
+  const h = document.getElementById('slider-history');
+
+  if (r) document.getElementById('val-rainfall').innerText = `${r.value} mm`;
+  if (s) document.getElementById('val-slope').innerText = `${s.value}°`;
+  if (soil) document.getElementById('val-soil').innerText = `${soil.value}%`;
+  if (h) document.getElementById('val-history').innerText = `${h.value} Events`;
 
   predictLandslideRisk();
 }
@@ -36,10 +43,10 @@ let debounceTimer = null;
 function predictLandslideRisk() {
   clearTimeout(debounceTimer);
   debounceTimer = setTimeout(async () => {
-    const rain = parseFloat(document.getElementById('slider-rainfall').value);
-    const slope = parseFloat(document.getElementById('slider-slope').value);
-    const soil = parseFloat(document.getElementById('slider-soil').value);
-    const hist = parseInt(document.getElementById('slider-history').value);
+    const rain = parseFloat(document.getElementById('slider-rainfall')?.value || 120);
+    const slope = parseFloat(document.getElementById('slider-slope')?.value || 35);
+    const soil = parseFloat(document.getElementById('slider-soil')?.value || 80);
+    const hist = parseInt(document.getElementById('slider-history')?.value || 4);
 
     try {
       const res = await fetch('/api/predict/landslide', {
@@ -88,13 +95,12 @@ function renderLandslidePrediction(data) {
     protocolText.innerText = data.action_protocol;
   }
 
-  // Render Factor Importance Chart with Chart.js
   renderFactorChart(data.factor_breakdown);
 }
 
 function renderFactorChart(factors) {
   const canvas = document.getElementById('chart-factor-weights');
-  if (!canvas) return;
+  if (!canvas || !factors) return;
 
   const labels = factors.map(f => f.name);
   const values = factors.map(f => f.contribution_pct);
@@ -135,4 +141,65 @@ function renderFactorChart(factors) {
       }
     });
   }
+}
+
+async function loadWeatherRadarAndFusion() {
+  try {
+    // 1. Fetch Radar Overlays for Leaflet
+    const radarRes = await fetch('/api/weather/radar-overlays');
+    const overlays = await radarRes.json();
+    if (window.layers && layers.weather) {
+      layers.weather.clearLayers();
+      overlays.forEach(ov => {
+        const circle = L.circle(ov.coordinates, {
+          radius: ov.radius_meters,
+          color: ov.color,
+          fillColor: ov.color,
+          fillOpacity: 0.18,
+          weight: 1.5,
+          dashArray: '3, 6'
+        }).bindPopup(`
+          <div style="font-family: Outfit, sans-serif;">
+            <div style="font-weight: 700; color: ${ov.color};">🌧️ Doppler Radar: ${ov.condition}</div>
+            <div>Precipitation: <strong>${ov.rainfall_mm_hr} mm/hr</strong> (${ov.dbz} dBZ)</div>
+          </div>
+        `);
+        layers.weather.addLayer(circle);
+      });
+    }
+
+    // 2. Fetch 4-Stream Data Fusion
+    const fusionRes = await fetch('/api/weather/fusion/composite-risk');
+    const fusionData = await fusionRes.json();
+    renderDataFusionCard(fusionData);
+  } catch (e) {
+    console.warn("Weather & Fusion load fallback:", e);
+  }
+}
+
+function renderDataFusionCard(data) {
+  const container = document.getElementById('data-fusion-stream-container');
+  if (!container || !data.corridors) return;
+
+  const topRisks = data.corridors.filter(c => c.composite_risk_score > 35).slice(0, 4);
+
+  container.innerHTML = `
+    <div style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 6px;">
+      ⚡ Fusing 4 Active Streams: Doppler Weather + PWD Health + GPS Telemetry + Field Reports
+    </div>
+    ${topRisks.map(c => `
+      <div style="background: rgba(0,0,0,0.3); border-radius: 6px; padding: 8px; margin-bottom: 6px; border-left: 3px solid ${c.composite_risk_score > 60 ? '#ff3366' : '#ffb800'};">
+        <div style="display: flex; justify-content: space-between; font-size: 12px; font-weight: 700; color: #fff;">
+          <span>${c.highway_code}</span>
+          <span style="color: ${c.composite_risk_score > 60 ? '#ff3366' : '#ffb800'};">CRI: ${c.composite_risk_score}% (${c.risk_tier})</span>
+        </div>
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; font-size: 9px; color: var(--text-muted); margin-top: 4px; font-family: var(--font-mono);">
+          <span>🌧️ Rain: ${c.streams_breakdown.weather_stream_pct}%</span>
+          <span>🛣️ Infra: ${c.streams_breakdown.infrastructure_stream_pct}%</span>
+          <span>🚚 Delay: ${c.streams_breakdown.gps_telemetry_stream_pct}%</span>
+          <span>📱 Field: ${c.streams_breakdown.field_reports_stream_pct}%</span>
+        </div>
+      </div>
+    `).join('')}
+  `;
 }

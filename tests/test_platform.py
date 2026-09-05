@@ -255,5 +255,33 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         v_res = resp.json()
         self.assertEqual(v_res["status"], "success")
 
+    def test_10_weather_and_data_fusion(self):
+        # 1. Weather Stations
+        resp = client.get("/api/weather/stations")
+        self.assertEqual(resp.status_code, 200)
+        stations = resp.json()
+        self.assertGreaterEqual(len(stations), 8)
+
+        # 2. District Weather
+        resp = client.get("/api/weather/district/node_shillong")
+        self.assertEqual(resp.status_code, 200)
+        shillong_w = resp.json()
+        self.assertEqual(shillong_w["district_id"], "node_shillong")
+        self.assertIn("rainfall_mm_hr", shillong_w)
+
+        # 3. Radar Overlays
+        resp = client.get("/api/weather/radar-overlays")
+        self.assertEqual(resp.status_code, 200)
+        overlays = resp.json()
+        self.assertIsInstance(overlays, list)
+
+        # 4. 4-Stream Data Fusion Composite Risk
+        resp = client.get("/api/weather/fusion/composite-risk")
+        self.assertEqual(resp.status_code, 200)
+        fusion = resp.json()
+        self.assertEqual(fusion["fusion_status"], "SYNCHRONIZED")
+        self.assertEqual(fusion["active_streams_count"], 4)
+        self.assertGreater(fusion["fused_corridors_count"], 0)
+
 if __name__ == "__main__":
     unittest.main()
