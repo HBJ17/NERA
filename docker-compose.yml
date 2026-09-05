@@ -1,11 +1,11 @@
 services:
-  ner-digital-twin:
+  nera-platform:
     build: .
-    image: ner-logistics-digital-twin:latest
-    container_name: ner_digital_twin_app
+    image: nera-platform:latest
+    container_name: nera_app
     ports:
       - "8000:8000"
     environment:
       - PORT=8000
-      - DEBUG=True
+      - DEBUG=False
     restart: unless-stopped
