@@ -169,6 +169,46 @@ body {
   box-shadow: 0 0 10px rgba(0, 240, 255, 0.2);
 }
 
+.header-center-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.district-badge-selector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(16, 24, 40, 0.85);
+  border: 1px solid rgba(0, 255, 136, 0.4);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  animation: fadeIn 0.3s ease;
+}
+
+.district-badge-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  text-transform: uppercase;
+}
+
+.district-select-dropdown {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-family: var(--font-main);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+}
+
+.district-select-dropdown option {
+  background: var(--bg-secondary);
+  color: #fff;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

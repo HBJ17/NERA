@@ -37,21 +37,36 @@
       </div>
     </div>
 
-    <!-- Center Persona Switcher -->
+    <!-- Center Persona & Role Switcher -->
     <div class="header-center-controls">
       <div class="persona-switcher">
-        <button class="persona-btn active" onclick="switchPersona('sdma', this)">
-          👨‍💼 SDMA / Govt
+        <button class="persona-btn active" id="role-btn-admin" onclick="switchRoleAndPersona('admin', this)">
+          👑 Admin (AI-GIS)
         </button>
-        <button class="persona-btn" onclick="switchPersona('fleet', this)">
-          🚚 Fleet Operator
+        <button class="persona-btn" id="role-btn-user" onclick="switchRoleAndPersona('user', this)">
+          🚗 Citizen / User
         </button>
-        <button class="persona-btn" onclick="switchPersona('driver', this)">
-          🚛 Driver HUD
+        <button class="persona-btn" id="role-btn-gov" onclick="switchRoleAndPersona('gov_employee', this)">
+          🏛️ Govt Employee
         </button>
-        <button class="persona-btn" onclick="switchPersona('supplies', this)">
-          🏪 Essential Supplies
-        </button>
+      </div>
+
+      <!-- District Selector Dropdown (Active for Govt Employee) -->
+      <div class="district-badge-selector" id="header-district-container" style="display: none;">
+        <span class="district-badge-label">📍 District:</span>
+        <select class="district-select-dropdown" id="active-district-select" onchange="onDistrictChange(this.value)">
+          <option value="node_kohima">Kohima (Nagaland)</option>
+          <option value="node_imphal">Imphal (Manipur)</option>
+          <option value="node_aizawl">Aizawl (Mizoram)</option>
+          <option value="node_pasighat">Pasighat / East Siang (Arunachal)</option>
+          <option value="node_guwahati">Guwahati / Kamrup (Assam)</option>
+          <option value="node_shillong">Shillong / E. Khasi (Meghalaya)</option>
+          <option value="node_gangtok">Gangtok (Sikkim)</option>
+          <option value="node_agartala">Agartala / W. Tripura (Tripura)</option>
+          <option value="node_haflong">Haflong / Dima Hasao (Assam)</option>
+          <option value="node_tawang">Tawang (Arunachal)</option>
+          <option value="node_silchar">Silchar / Cachar (Assam)</option>
+        </select>
       </div>
     </div>
 

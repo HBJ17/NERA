@@ -7,7 +7,9 @@
  * - Modular Tab Viewports: Twin, Simulation, Predictor, Routing, Supplies, Field Reports
  * - Live UTC & IST Synchronized Telemetry Clock
  */
-let currentPersona = 'sdma'; // 'sdma', 'fleet', 'driver', 'supplies'
+let currentRole = 'admin'; // 'admin', 'user', 'gov_employee'
+let currentDistrictId = 'node_kohima';
+let currentPersona = 'sdma';
 
 document.addEventListener('DOMContentLoaded', () => {
   initDigitalTwinMap();
@@ -23,8 +25,18 @@ document.addEventListener('DOMContentLoaded', () => {
     populateRouteDropdowns();
     renderDistrictGrid();
     renderSuppliesRunway();
+    initRoleState();
   }, 800);
 });
+
+function initRoleState() {
+  const savedRole = localStorage.getItem('nera_role') || 'admin';
+  const savedDist = localStorage.getItem('nera_district') || 'node_kohima';
+  const roleBtn = document.getElementById(`role-btn-${savedRole === 'gov_employee' ? 'gov' : savedRole}`);
+  if (roleBtn) {
+    switchRoleAndPersona(savedRole, roleBtn, savedDist);
+  }
+}
 
 function startClock() {
   function updateTime() {
@@ -44,7 +56,7 @@ function startClock() {
 function switchTab(tabId, btn) {
   // Update button active state
   document.querySelectorAll('.cockpit-tab-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
 
   // Hide all tab panes
   document.querySelectorAll('.cockpit-tab-pane').forEach(p => p.style.display = 'none');
@@ -56,25 +68,87 @@ function switchTab(tabId, btn) {
   }
 }
 
-function switchPersona(personaKey, btn) {
-  currentPersona = personaKey;
+async function switchRoleAndPersona(roleKey, btn, optDistrict) {
+  currentRole = roleKey;
+  localStorage.setItem('nera_role', roleKey);
+  
+  // Update active button
   document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
+  if (btn) btn.classList.add('active');
 
-  // Auto switch to relevant tab for that persona
-  if (personaKey === 'sdma') {
+  // Toggle district selector visibility
+  const distContainer = document.getElementById('header-district-container');
+  if (distContainer) {
+    distContainer.style.display = roleKey === 'gov_employee' ? 'flex' : 'none';
+  }
+
+  const distSelect = document.getElementById('active-district-select');
+  if (optDistrict && distSelect) {
+    distSelect.value = optDistrict;
+    currentDistrictId = optDistrict;
+  }
+
+  // Notify backend of role switch
+  try {
+    await fetch('/api/roles/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: roleKey, district_id: currentDistrictId })
+    });
+  } catch (e) {
+    console.warn('Role switch network fallback:', e);
+  }
+
+  // Adapt UI to Role
+  if (roleKey === 'admin') {
     const tabBtn = document.querySelector('[data-tab="twin"]');
     if (tabBtn) switchTab('twin', tabBtn);
-  } else if (personaKey === 'fleet') {
-    const tabBtn = document.querySelector('[data-tab="twin"]');
-    if (tabBtn) switchTab('twin', tabBtn);
-  } else if (personaKey === 'driver') {
+    if (window.map) map.setView([26.2006, 92.9376], 7);
+  } else if (roleKey === 'user') {
     const tabBtn = document.querySelector('[data-tab="routing"]');
     if (tabBtn) switchTab('routing', tabBtn);
-  } else if (personaKey === 'supplies') {
-    const tabBtn = document.querySelector('[data-tab="supplies"]');
-    if (tabBtn) switchTab('supplies', tabBtn);
+  } else if (roleKey === 'gov_employee') {
+    const tabBtn = document.querySelector('[data-tab="reports"]');
+    if (tabBtn) switchTab('reports', tabBtn);
+    if (distSelect) onDistrictChange(distSelect.value);
   }
+
+  // Reload alerts according to role scope
+  if (typeof loadActiveAlerts === 'function') {
+    loadActiveAlerts();
+  }
+}
+
+async function onDistrictChange(districtId) {
+  currentDistrictId = districtId;
+  localStorage.setItem('nera_district', districtId);
+
+  try {
+    await fetch('/api/roles/switch', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ role: currentRole, district_id: districtId })
+    });
+  } catch (e) {}
+
+  // Center map on chosen district
+  if (window.twinData && window.twinData.districts) {
+    const d = twinData.districts.find(x => x.id === districtId);
+    if (d && window.map) {
+      map.setView([d.coordinates[0], d.coordinates[1]], 9, { animate: true });
+    }
+  }
+
+  if (typeof loadFieldReportsList === 'function') {
+    loadFieldReportsList();
+  }
+  if (typeof loadActiveAlerts === 'function') {
+    loadActiveAlerts();
+  }
+}
+
+function switchPersona(personaKey, btn) {
+  switchRoleAndPersona(personaKey === 'driver' ? 'user' : (personaKey === 'sdma' ? 'gov_employee' : 'admin'), btn);
 }
 
 function renderDistrictGrid() {
