@@ -203,5 +203,45 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         self.assertEqual(sync_res["status"], "synced")
         self.assertEqual(sync_res["synced_count"], 1)
 
+    def test_09_government_employee_district_workflow(self):
+        # 1. Fetch District Dashboard for Kohima
+        resp = client.get("/api/district/dashboard/node_kohima")
+        self.assertEqual(resp.status_code, 200)
+        dash = resp.json()
+        self.assertEqual(dash["district_id"], "node_kohima")
+        self.assertIn("metrics", dash)
+        self.assertIn("hospital_stock_runway", dash)
+        self.assertGreaterEqual(dash["trust_score"], 90.0)
+
+        # 2. Submit official employee report (High Trust 92%)
+        resp = client.post("/api/district/official-report", json={
+            "officer_name": "Er. T. Jamir",
+            "department": "PWD Highway Division Kohima",
+            "incident_type": "Landslide",
+            "severity": "HIGH",
+            "latitude": 25.6751,
+            "longitude": 94.1086,
+            "location_name": "NH-29 Km 12 near Kohima",
+            "nearest_highway": "NH-29",
+            "description": "Mudslide on NH-29 single lane blocked",
+            "emergency_flag": True
+        })
+        self.assertEqual(resp.status_code, 200)
+        off_rpt = resp.json()
+        self.assertEqual(off_rpt["reporter_role"], "gov_employee")
+        self.assertEqual(off_rpt["confidence_score"], 92.0)
+        self.assertEqual(off_rpt["verification_status"], "ACTIVE_INCIDENT")
+
+        # 3. Employee verifies via district router
+        resp = client.post("/api/district/verify", json={
+            "report_id": off_rpt["id"],
+            "action": "CONFIRM",
+            "officer_name": "Er. T. Jamir",
+            "department": "SDMA Kohima"
+        })
+        self.assertEqual(resp.status_code, 200)
+        v_res = resp.json()
+        self.assertEqual(v_res["status"], "success")
+
 if __name__ == "__main__":
     unittest.main()

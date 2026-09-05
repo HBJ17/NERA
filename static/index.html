@@ -442,20 +442,62 @@
           </div>
         </div>
 
-        <!-- TAB 6: FIELD REPORTING FEEDS -->
+        <!-- TAB 6: GOVERNMENT EMPLOYEE DISTRICT MONITORING & FIELD FEEDS -->
         <div id="tab-reports" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
-          <div class="cockpit-card">
+          <!-- District Officer Status Card -->
+          <div class="cockpit-card" id="district-officer-banner">
             <div class="cockpit-card-title">
-              <span>📱 PWD & Citizen Field Incident Feeds</span>
-              <button class="btn-report-hazard" style="padding: 4px 10px; font-size: 0.75rem;" onclick="openFieldReportModal()">
-                + New Report
-              </button>
+              <span id="gov-district-title">🏛️ District Command: Kohima</span>
+              <span class="badge" style="background: rgba(0,255,136,0.15); color: var(--accent-green);" id="gov-officer-badge">PWD / SDMA (92% Trust)</span>
+            </div>
+            <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 8px;" id="gov-officer-name">
+              Assigned: Er. T. Jamir (Executive Disaster Response Engineer)
             </div>
 
-            <button class="btn-secondary" style="font-size: 0.78rem; padding: 6px 12px; justify-content: center;" onclick="syncOfflineReports()">
-              🔄 Sync Offline Cache Queue
-            </button>
+            <!-- District 6-Metric Grid -->
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0;">
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Active Incidents</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #fff;" id="gov-metric-active">12</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Pending Review</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-amber);" id="gov-metric-pending">8</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Critical Hazards</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-red);" id="gov-metric-critical">2</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Road Blockages</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #ff85a2;" id="gov-metric-blockages">4</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Floods</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: var(--accent-cyan);" id="gov-metric-floods">3</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 8px; border-radius: var(--radius-sm); text-align: center;">
+                <div style="font-size: 0.7rem; color: var(--text-muted);">Landslides</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: #ffb800;" id="gov-metric-landslides">3</div>
+              </div>
+            </div>
 
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+              <button class="btn-primary" style="flex: 1; font-size: 0.78rem; padding: 6px;" onclick="openFieldReportModal()">
+                📷 Report Official Incident
+              </button>
+              <button class="btn-secondary" style="font-size: 0.78rem; padding: 6px 10px;" onclick="syncOfflineReports()">
+                🔄 Sync Offline
+              </button>
+            </div>
+          </div>
+
+          <!-- Field Reports & Verification Queue -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>📋 Field Reports Verification Queue</span>
+              <span class="badge" style="background: rgba(255,184,0,0.2); color: var(--accent-amber);">LIVE VERIFICATION</span>
+            </div>
             <div id="field-reports-timeline" style="margin-top: 10px;">
               <!-- Rendered via JS -->
             </div>

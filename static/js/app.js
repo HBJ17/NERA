@@ -124,12 +124,39 @@ async function onDistrictChange(districtId) {
   localStorage.setItem('nera_district', districtId);
 
   try {
-    await fetch('/api/roles/switch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role: currentRole, district_id: districtId })
-    });
-  } catch (e) {}
+    const res = await fetch(`/api/district/dashboard/${districtId}`);
+    const dash = await res.json();
+    
+    // Update Government Employee Command Banner & Metrics
+    const titleEl = document.getElementById('gov-district-title');
+    if (titleEl) titleEl.innerText = `🏛️ District Command: ${dash.district_name.split(' (')[0]}`;
+
+    const badgeEl = document.getElementById('gov-officer-badge');
+    if (badgeEl) badgeEl.innerText = `${dash.department} (${dash.trust_score}% Trust)`;
+
+    const nameEl = document.getElementById('gov-officer-name');
+    if (nameEl) nameEl.innerText = `Assigned: ${dash.assigned_officer}`;
+
+    const mActive = document.getElementById('gov-metric-active');
+    if (mActive) mActive.innerText = dash.metrics.active_incidents;
+
+    const mPending = document.getElementById('gov-metric-pending');
+    if (mPending) mPending.innerText = dash.metrics.pending_reports;
+
+    const mCrit = document.getElementById('gov-metric-critical');
+    if (mCrit) mCrit.innerText = dash.metrics.critical_hazards;
+
+    const mBlock = document.getElementById('gov-metric-blockages');
+    if (mBlock) mBlock.innerText = dash.metrics.road_blockages;
+
+    const mFlood = document.getElementById('gov-metric-floods');
+    if (mFlood) mFlood.innerText = dash.metrics.floods;
+
+    const mLs = document.getElementById('gov-metric-landslides');
+    if (mLs) mLs.innerText = dash.metrics.landslides;
+  } catch (e) {
+    console.warn("District dashboard fetch fallback:", e);
+  }
 
   // Center map on chosen district
   if (window.twinData && window.twinData.districts) {
