@@ -152,5 +152,56 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         alerts = resp.json()
         self.assertGreater(len(alerts), 0)
 
+    def test_08b_field_report_verification_and_offline_sync(self):
+        # 1. Citizen submits pending report
+        resp = client.post("/api/reports/submit", json={
+            "officer_name": "Citizen Traveler",
+            "department": "Local Citizen",
+            "reporter_role": "user",
+            "incident_type": "Flood",
+            "severity": "HIGH",
+            "latitude": 26.1800,
+            "longitude": 91.7500,
+            "location_name": "Guwahati North Bank",
+            "nearest_highway": "NH-27",
+            "description": "Water logging near bridge",
+            "confidence_score": 65.0
+        })
+        self.assertEqual(resp.status_code, 200)
+        citizen_rpt = resp.json()
+        self.assertEqual(citizen_rpt["verification_status"], "PENDING_VERIFICATION")
+
+        # 2. Government Employee verifies report
+        resp = client.post(f"/api/reports/verify/{citizen_rpt['id']}", json={
+            "action": "CONFIRM",
+            "verifier_name": "Er. T. Jamir",
+            "verifier_department": "PWD / SDMA"
+        })
+        self.assertEqual(resp.status_code, 200)
+        verify_data = resp.json()
+        self.assertEqual(verify_data["status"], "success")
+        self.assertEqual(verify_data["report"]["verification_status"], "ACTIVE_INCIDENT")
+
+        # 3. Offline Batch Sync
+        resp = client.post("/api/reports/sync-batch", json=[
+            {
+                "officer_name": "Offline Patroller",
+                "department": "Traffic Police",
+                "reporter_role": "gov_employee",
+                "incident_type": "Road Blockage",
+                "severity": "BLOCKING",
+                "latitude": 27.5000,
+                "longitude": 92.1000,
+                "location_name": "Sela Sector",
+                "nearest_highway": "NH-13",
+                "description": "Fallen boulders",
+                "emergency_flag": True
+            }
+        ])
+        self.assertEqual(resp.status_code, 200)
+        sync_res = resp.json()
+        self.assertEqual(sync_res["status"], "synced")
+        self.assertEqual(sync_res["synced_count"], 1)
+
 if __name__ == "__main__":
     unittest.main()

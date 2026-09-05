@@ -1,12 +1,13 @@
 """
 NERA (North Eastern Resilience & Autonomous Logistics Engine)
-Module 3, 6, 8 & 12: Fleet Telemetry, Field Incident Ingestion & Alert State Manager
+Module 3, 4, 5, 6, 8 & 19: Fleet Telemetry, Field Incident Ingestion, Verification Lifecycle & Alert State Manager
 
 Maintains:
-- Live GPS vehicle telemetry with micro-jitter kinetic updates
-- Dynamic in-memory road edge and district node statuses
-- Geotagged field reports queue and topological twin graph propagation
-- Multilingual alert broadcast synthesis
+- Live GPS vehicle telemetry with micro-kinetic updates
+- Ingests Crowdsourced (65% confidence, Pending Verification) & Govt Employee (92% confidence, Emergency Flag) reports
+- Closed-Loop Lifecycle: SUBMITTED -> PENDING_VERIFICATION -> VERIFIED / REJECTED -> ACTIVE_INCIDENT
+- Propagates verified disruptions immediately into road graph status, alert tickers, and routing engine
+- Batch Synchronization from Offline IndexedDB queue
 """
 import copy
 import uuid
@@ -22,6 +23,7 @@ from app.services.digital_twin_data import (
 from app.models.schemas import (
     FieldReportCreate,
     FieldReportRecord,
+    FieldReportVerifyRequest,
     EmergencyAlert
 )
 
@@ -39,6 +41,9 @@ class FleetAndFieldManager:
     def get_field_reports(self) -> List[Dict[str, Any]]:
         return self.field_reports
 
+    def get_pending_reports(self) -> List[Dict[str, Any]]:
+        return [r for r in self.field_reports if r.get("verification_status") == "PENDING_VERIFICATION"]
+
     def get_alerts(self) -> List[Dict[str, Any]]:
         return self.alerts
 
@@ -46,10 +51,16 @@ class FleetAndFieldManager:
         report_id = f"rpt_{uuid.uuid4().hex[:6]}"
         now_str = datetime.now().strftime("%I:%M %p, Today")
 
+        is_gov = report.reporter_role in ("gov_employee", "admin") or any(k in report.department.upper() for k in ["PWD", "NDRF", "POLICE", "SDMA", "ENGINEER"])
+        
+        confidence = report.confidence_score or (92.0 if is_gov else 65.0)
+        initial_status = "ACTIVE_INCIDENT" if (is_gov and report.emergency_flag) else ("PWD_CONFIRMED" if is_gov else "PENDING_VERIFICATION")
+
         record = FieldReportRecord(
             id=report_id,
             officer_name=report.officer_name,
             department=report.department,
+            reporter_role=report.reporter_role,
             incident_type=report.incident_type,
             severity=report.severity,
             latitude=report.latitude,
@@ -60,16 +71,52 @@ class FleetAndFieldManager:
             photo_url=report.photo_url or "https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80",
             description=report.description,
             estimated_clearance_hrs=report.estimated_clearance_hrs,
+            emergency_flag=report.emergency_flag,
+            confidence_score=confidence,
             reported_at=now_str,
-            verification_status="PWD_CONFIRMED" if "PWD" in report.department else "VERIFIED_AI"
+            verification_status=initial_status,
+            verified_by=report.officer_name if is_gov else None,
+            verified_at=now_str if is_gov else None
         )
 
         self.field_reports.insert(0, record.model_dump())
 
-        # Automatically propagate hazard into the Digital Twin road network!
-        self._propagate_field_report_to_twin(record)
+        # If verified / high severity, propagate into Digital Twin network immediately
+        if initial_status in ("ACTIVE_INCIDENT", "PWD_CONFIRMED") or report.severity in ("HIGH", "BLOCKING"):
+            self._propagate_field_report_to_twin(record)
 
         return record
+
+    def verify_field_report(self, report_id: str, req: FieldReportVerifyRequest) -> Optional[Dict[str, Any]]:
+        """Employee / Admin reviews and verifies or rejects a field report"""
+        report = next((r for r in self.field_reports if r["id"] == report_id), None)
+        if not report:
+            return None
+
+        now_str = datetime.now().strftime("%I:%M %p, Today")
+        if req.action.upper() == "CONFIRM":
+            report["verification_status"] = "ACTIVE_INCIDENT"
+            report["confidence_score"] = max(report.get("confidence_score", 65.0), 95.0)
+            report["verified_by"] = f"{req.verifier_name} ({req.verifier_department})"
+            report["verified_at"] = now_str
+            
+            # Closed-Loop Promotion: Propagate into Twin road network & trigger Alert
+            rec_obj = FieldReportRecord(**report)
+            self._propagate_field_report_to_twin(rec_obj)
+        else:
+            report["verification_status"] = "REJECTED"
+            report["verified_by"] = f"{req.verifier_name} ({req.verifier_department})"
+            report["verified_at"] = now_str
+
+        return report
+
+    def sync_batch_offline_reports(self, reports: List[FieldReportCreate]) -> List[FieldReportRecord]:
+        """Processes queued reports captured offline and restores database consistency"""
+        synced_records = []
+        for r in reports:
+            rec = self.add_field_report(r)
+            synced_records.append(rec)
+        return synced_records
 
     def _propagate_field_report_to_twin(self, record: FieldReportRecord):
         # Match nearest highway edge
@@ -78,9 +125,9 @@ class FleetAndFieldManager:
             e_hw = edge["highway_code"].lower().replace("-", "").replace(" ", "")
             if hw in e_hw or e_hw in hw:
                 if record.severity in ("HIGH", "BLOCKING"):
-                    edge["status"] = "warning"
-                    edge["landslide_risk"] = max(edge["landslide_risk"], 85.0)
-                    edge["closure_reason"] = f"Field Incident ({record.incident_type}): {record.description[:60]}..."
+                    edge["status"] = "blocked" if record.severity == "BLOCKING" else "warning"
+                    edge["landslide_risk"] = max(edge.get("landslide_risk", 10.0), 88.0)
+                    edge["closure_reason"] = f"Verified Incident ({record.incident_type}): {record.description[:60]}..."
                 break
 
         # Generate live emergency alert
@@ -88,12 +135,12 @@ class FleetAndFieldManager:
             "id": f"alt_{uuid.uuid4().hex[:4]}",
             "timestamp": "Just Now",
             "severity": "CRITICAL_DANGER" if record.severity in ("HIGH", "BLOCKING") else "WARNING",
-            "category": "LANDSLIDE" if "landslide" in record.incident_type.lower() else "ROAD_CLOSURE",
+            "category": "LANDSLIDE" if "landslide" in record.incident_type.lower() else ("FLOOD" if "flood" in record.incident_type.lower() else "ROAD_CLOSURE"),
             "location_tag": f"{record.location_name} ({record.nearest_highway})",
-            "message_en": f"LIVE DISPATCH: {record.incident_type} reported at {record.location_name}. {record.description}",
-            "message_as": f"প্ৰত্যক্ষ প্ৰতিবেদন: {record.location_name} ত {record.incident_type} ৰ ঘটনা। যান-বাহন চালকসকল সতৰ্ক হওক।",
-            "message_hi": f"ताज़ा रिपोर्ट: {record.location_name} पर {record.incident_type} की सूचना। यातायात प्रभावित।",
-            "message_bn": f"তাজা খবর: {record.location_name} এ {record.incident_type} এর খবর। চালকদের সতর্ক থাকার পরামর্শ।",
+            "message_en": f"VERIFIED DISPATCH: {record.incident_type} at {record.location_name}. {record.description}",
+            "message_as": f"প্ৰমাণিত প্ৰতিবেদন: {record.location_name} ত {record.incident_type} ৰ ঘটনা। যান-বাহন চালকসকল সতৰ্ক হওক।",
+            "message_hi": f"सत्यापित सूचना: {record.location_name} पर {record.incident_type}। सावधानी बरतें।",
+            "message_bn": f"যাচাইকৃত রিপোর্ট: {record.location_name} এ {record.incident_type}। বিকল্প রুট ব্যবহার করুন।",
             "affected_routes": [record.nearest_highway],
             "affected_districts": [record.location_name.split(",")[0]]
         }
@@ -103,7 +150,6 @@ class FleetAndFieldManager:
         """Simulate micro-movement for active vehicles along their routes"""
         for v in self.fleet:
             if v["status"] == "moving":
-                # Slight realistic jitter along route
                 lat, lng = v["current_coordinates"]
                 lat += 0.0008 * (1 if int(v["id"][-1]) % 2 == 0 else -0.5)
                 lng += 0.0009 * (1 if int(v["id"][-1]) % 2 == 0 else -0.5)

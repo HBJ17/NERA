@@ -193,9 +193,10 @@ class DisasterSimulationResponse(BaseModel):
 # --- Field Reports Schemas ---
 class FieldReportCreate(BaseModel):
     officer_name: str
-    department: str # "PWD Engineer", "Traffic Police", "NDRF", "Commercial Driver", "Local Citizen"
-    incident_type: str # "Landslide", "Flash Flood", "Bridge Damaged", "Fallen Trees", "Road Caved"
-    severity: str # "LOW", "MEDIUM", "HIGH", "BLOCKING"
+    department: str = "Local Citizen" # "PWD Engineer", "Traffic Police", "NDRF", "Commercial Driver", "Local Citizen"
+    reporter_role: str = "user" # "user", "gov_employee", "admin"
+    incident_type: str # "Landslide", "Flash Flood", "Road Blockage", "Accident", "Damaged Road", "Weather Hazard", "Other"
+    severity: str = "HIGH" # "LOW", "MEDIUM", "HIGH", "BLOCKING"
     latitude: float
     longitude: float
     location_name: str
@@ -204,11 +205,21 @@ class FieldReportCreate(BaseModel):
     photo_url: Optional[str] = None
     description: str
     estimated_clearance_hrs: float = 6.0
+    emergency_flag: bool = False
+    confidence_score: Optional[float] = 65.0
+
+class FieldReportVerifyRequest(BaseModel):
+    action: str # "CONFIRM" or "REJECT"
+    verifier_name: str = "District Incident Commander"
+    verifier_department: str = "SDMA / PWD"
+    notes: Optional[str] = None
 
 class FieldReportRecord(FieldReportCreate):
     id: str
     reported_at: str
-    verification_status: str # "VERIFIED_AI", "PENDING_VERIFICATION", "PWD_CONFIRMED"
+    verification_status: str = "PENDING_VERIFICATION" # "SUBMITTED", "PENDING_VERIFICATION", "VERIFIED", "REJECTED", "ACTIVE_INCIDENT"
+    verified_by: Optional[str] = None
+    verified_at: Optional[str] = None
 
 # --- Alert Broadcast Schemas ---
 class EmergencyAlert(BaseModel):
