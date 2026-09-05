@@ -118,6 +118,37 @@
     <section class="map-viewport">
       <div id="leaflet-map"></div>
 
+      <!-- Floating Google Maps Navigation Search (Active in User/Citizen Mode) -->
+      <div class="user-nav-floating-search" id="user-nav-search-widget">
+        <div class="user-nav-search-bar">
+          <span class="user-nav-search-icon">📍</span>
+          <input type="text" id="user-destination-input" class="user-nav-input" placeholder="Search destination (e.g. Kohima, Tawang, Imphal, Shillong, Saraighat)..." oninput="onDestinationSearchInput(this.value)" onfocus="showSearchDropdown()">
+          <button class="user-nav-btn-go" onclick="onQuickNavigateClick()">Navigate ➔</button>
+        </div>
+        <div class="user-search-suggestions" id="user-search-suggestions-dropdown" style="display: none;"></div>
+      </div>
+
+      <!-- Floating Active Turn HUD -->
+      <div class="user-active-nav-hud" id="user-active-nav-hud" style="display: none;">
+        <div class="user-nav-hud-header">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2rem;">🧭</span>
+            <div>
+              <div style="font-weight: 700; color: #fff; font-size: 0.88rem;" id="hud-nav-dest-name">Guwahati ➔ Tawang</div>
+              <div style="font-size: 0.72rem; color: var(--accent-cyan);" id="hud-nav-stats">360 km · 8.2 hrs · Safe Corridor</div>
+            </div>
+          </div>
+          <button class="user-nav-btn-close" onclick="closeNavigationHUD()">✕</button>
+        </div>
+        <div class="user-nav-turn-instruction" id="hud-current-turn">
+          <span style="font-size: 1.2rem;">⬆️</span>
+          <span id="hud-turn-text">Proceed on NH-27 towards Tezpur (180 km)</span>
+        </div>
+        <div id="hud-hazard-warning" class="user-nav-hazard-banner" style="display: none;">
+          ⚠️ <span id="hud-hazard-text">Landslide reported on original highway. Safe bypass engaged!</span>
+        </div>
+      </div>
+
       <!-- Floating Map Layer Controls -->
       <div class="map-floating-layers">
         <button class="layer-toggle-btn active" onclick="toggleMapLayer('highways', this)">

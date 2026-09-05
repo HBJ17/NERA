@@ -41,6 +41,7 @@ function initDigitalTwinMap() {
   Object.values(layers).forEach(layer => layer.addTo(map));
 
   fetchTwinState();
+  initUserLocation();
 }
 
 async function fetchTwinState() {
@@ -248,6 +249,41 @@ function toggleMapLayer(layerKey, btnElement) {
   }
 }
 
+let userLocationMarker = null;
+
+function initUserLocation() {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const coords = [pos.coords.latitude, pos.coords.longitude];
+        setUserLocationMarker(coords);
+      },
+      () => {
+        // Fallback default: Guwahati central
+        setUserLocationMarker([26.1445, 91.7362]);
+      }
+    );
+  } else {
+    setUserLocationMarker([26.1445, 91.7362]);
+  }
+}
+
+function setUserLocationMarker(coords) {
+  if (userLocationMarker && map) {
+    map.removeLayer(userLocationMarker);
+  }
+  userLocationMarker = L.circleMarker(coords, {
+    radius: 9,
+    color: '#00f0ff',
+    fillColor: '#00f0ff',
+    fillOpacity: 0.9,
+    weight: 3
+  }).bindPopup(`<div style="font-weight: 700; color: #00f0ff;">📍 You Are Here</div>`);
+  if (map) {
+    userLocationMarker.addTo(map);
+  }
+}
+
 function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false) {
   if (!isSecondary) {
     layers.activeRoute.clearLayers();
@@ -261,6 +297,29 @@ function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false
   });
 
   layers.activeRoute.addLayer(routeLine);
+
+  if (!isSecondary && routeCoordinates.length >= 2) {
+    const startPt = routeCoordinates[0];
+    const endPt = routeCoordinates[routeCoordinates.length - 1];
+
+    const startMarker = L.circleMarker(startPt, {
+      radius: 7,
+      color: '#00ff88',
+      fillColor: '#00ff88',
+      fillOpacity: 1
+    }).bindPopup("<strong>Start Point</strong>");
+
+    const endMarker = L.circleMarker(endPt, {
+      radius: 7,
+      color: '#ff3366',
+      fillColor: '#ff3366',
+      fillOpacity: 1
+    }).bindPopup("<strong>Destination</strong>");
+
+    layers.activeRoute.addLayer(startMarker);
+    layers.activeRoute.addLayer(endMarker);
+  }
+
   map.fitBounds(routeLine.getBounds(), { padding: [50, 50] });
 }
 

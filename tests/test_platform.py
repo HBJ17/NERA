@@ -96,6 +96,24 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         self.assertGreater(len(rec["segments"]), 0)
         self.assertGreater(len(rec["path_coordinates"]), 0)
 
+    def test_06b_place_search_and_dynamic_rerouting(self):
+        # 1. Place Search Geocoding
+        resp = client.get("/api/routing/search?q=Kohima")
+        self.assertEqual(resp.status_code, 200)
+        places = resp.json()
+        self.assertGreaterEqual(len(places), 1)
+        self.assertIn("Kohima", places[0]["name"])
+
+        # 2. Dynamic Rerouting
+        resp = client.post("/api/routing/reroute", json={
+            "source_id": "node_guwahati",
+            "destination_id": "node_kohima",
+            "custom_avoid_edges": ["edge_nagaon_dimapur"]
+        })
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertIn("recommended_route", data)
+
     def test_07_what_if_simulation_sandbox(self):
         resp = client.post("/api/simulation/run", json={
             "scenario_id": "scenario_sela_landslide",
