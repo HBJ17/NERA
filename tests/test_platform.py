@@ -128,6 +128,18 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         self.assertIn("ai_generated_reroutes", data)
         self.assertIn("emergency_action_recommendations", data)
 
+        # Check active state
+        resp = client.get("/api/simulation/active")
+        self.assertEqual(resp.status_code, 200)
+        active_data = resp.json()
+        self.assertTrue(active_data["active"])
+        self.assertIn("Sela Pass", active_data["simulation"]["scenario_title"])
+
+        # Reset simulation
+        resp = client.post("/api/simulation/reset")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["status"], "reset")
+
     def test_08_field_report_and_twin_propagation(self):
         # Submit a field report
         resp = client.post("/api/reports/submit", json={

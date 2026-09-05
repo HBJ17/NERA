@@ -1,14 +1,16 @@
 """
 NERA (North Eastern Resilience & Autonomous Logistics Engine)
-Module 10: 'What-If' Disaster Simulation & Network Resilience Sandbox
+Module 10, 11 & 12: 'What-If' Disaster Simulation & Cross-Role Propagation Engine
 
 Features:
-- Preset & Custom Disaster Stress-Testing Scenarios (Sela Pass, Saraighat, Haflong, Teesta)
+- Preset & Custom Disaster Stress-Testing Scenarios (Sela Pass, Saraighat, Haflong, Teesta, Kohima)
 - Graph Partitioning & Reachability Analysis across Regional Subgraphs
 - Isolation Impact Quantification (Affected Population, Trapped Oxygen, Vaccines & Food Rations)
-- Autonomous Multi-Agency Standard Operating Procedures (SOP) Directives
+- Cross-Role Real-Time Propagation: Mutates Digital Twin road states, updates Alert tickers, and triggers user rerouting
+- Complete Reset & State Recovery Lifecycle
 """
 import copy
+import uuid
 import networkx as nx
 from typing import Dict, Any, List, Optional
 from datetime import datetime
@@ -24,7 +26,8 @@ from app.models.schemas import (
     DisasterSimulationResponse,
     IsolatedDistrictReport,
     AffectedVehicleReport,
-    RoutePlan
+    RoutePlan,
+    EmergencyAlert
 )
 
 class DisasterSimulationEngine:
@@ -40,6 +43,7 @@ class DisasterSimulationEngine:
             "location": "Sela Pass Viaduct / Baisakhi - Tawang Sector",
             "target_edge": "edge_bomdila_tawang",
             "target_node": "node_tawang",
+            "affected_districts": ["Tawang", "West Kameng"],
             "description": "Massive 2,000 cu.m debris fall has completely blocked NH-13 at 13,700 ft elevation. Sub-zero temperatures hindering heavy earthmover clearance."
         },
         "scenario_saraighat_flood": {
@@ -47,6 +51,7 @@ class DisasterSimulationEngine:
             "location": "Brahmaputra River - Guwahati North Bank Link",
             "target_edge": "edge_siliguri_guwahati",
             "target_node": "bridge_saraighat",
+            "affected_districts": ["Guwahati", "Kamrup"],
             "description": "Brahmaputra river level surged 1.4m above extreme danger level. PWD closed bridge deck to heavy cargo convoys due to hydrodynamic turbulence."
         },
         "scenario_haflong_breach": {
@@ -54,6 +59,7 @@ class DisasterSimulationEngine:
             "location": "NH-27 Lumding-Haflong-Silchar Mountain Highway",
             "target_edge": "edge_nagaon_haflong",
             "target_node": "node_haflong",
+            "affected_districts": ["Haflong", "Silchar", "Cachar"],
             "description": "Continuous 72h monsoon downpour (190mm) caused progressive embankment failure. Barak Valley lifeline severed."
         },
         "scenario_teesta_gorge_cut": {
@@ -61,9 +67,33 @@ class DisasterSimulationEngine:
             "location": "NH-10 29th Mile - Sikkim Lifeline",
             "target_edge": "edge_siliguri_gangtok",
             "target_node": "node_gangtok",
+            "affected_districts": ["Gangtok", "Mangan"],
             "description": "Teesta river overflowed retaining walls with simultaneous rock slides. Land connection to Gangtok severed for 72 hours."
+        },
+        "scenario_kohima_mudslide": {
+            "title": "NH-29 Phesama - Kohima Mountain Sinking & Mudflow",
+            "location": "NH-29 Dimapur - Kohima Mountain Lifeline",
+            "target_edge": "edge_dimapur_kohima",
+            "target_node": "node_kohima",
+            "affected_districts": ["Kohima", "Dimapur"],
+            "description": "High slope saturation triggered road sinking at NH-29 Phesama bypass. Highway impassable for heavy transport."
         }
     }
+
+    def __init__(self):
+        self.active_simulation: Optional[Dict[str, Any]] = None
+
+    def get_active_simulation(self) -> Optional[Dict[str, Any]]:
+        return self.active_simulation
+
+    def reset_simulation(self) -> Dict[str, Any]:
+        """Restores Digital Twin road edges and node states back to normal operational status"""
+        from app.services.fleet_tracker import fleet_manager
+        fleet_manager.edges_state = copy.deepcopy(NER_ROAD_EDGES)
+        fleet_manager.nodes_state = copy.deepcopy(NER_DISTRICT_NODES)
+        self.active_simulation = None
+        smart_route_engine.build_graph()
+        return {"status": "reset", "message": "Digital Twin simulation reset to normal baseline."}
 
     def run_simulation(self, req: DisasterSimulationRequest) -> DisasterSimulationResponse:
         scenario_id = req.scenario_id
@@ -74,11 +104,15 @@ class DisasterSimulationEngine:
             incident_loc = preset["location"]
             target_edge = preset["target_edge"]
             target_node = preset["target_node"]
+            aff_districts = preset.get("affected_districts", ["Target District"])
+            desc = preset["description"]
         else:
             scenario_title = f"Custom Stress Simulation: {req.target_edge_id or req.target_node_id or 'Regional Hazard'}"
             incident_loc = "Custom Target Sector"
             target_edge = req.target_edge_id or "edge_bomdila_tawang"
             target_node = req.target_node_id or "node_tawang"
+            aff_districts = ["Regional Sector"]
+            desc = f"Simulated disaster with severity {req.disaster_severity} on critical corridor."
 
         # Build simulated network graph
         G_sim = nx.Graph()
@@ -95,7 +129,7 @@ class DisasterSimulationEngine:
             G_sim.add_edge(e["source"], e["target"], **e)
 
         # 1. Connectivity Matrix & Isolated Districts Analysis
-        hub_node = "node_guwahati" # Central logistics gateway
+        hub_node = "node_guwahati"
         connectivity_matrix = {}
         isolated_districts: List[IsolatedDistrictReport] = []
         total_pop_affected = 0
@@ -108,7 +142,6 @@ class DisasterSimulationEngine:
             try:
                 has_path = nx.has_path(G_sim, source=hub_node, target=n_id)
                 if has_path:
-                    # Check if path length significantly increased
                     orig_len = nx.shortest_path_length(smart_route_engine.G_distance, source=hub_node, target=n_id, weight="weight")
                     sim_len = nx.shortest_path_length(G_sim, source=hub_node, target=n_id, weight="weight")
                     if sim_len > orig_len * 1.5:
@@ -147,7 +180,6 @@ class DisasterSimulationEngine:
         }
 
         for v in INITIAL_FLEET_DATA:
-            # Check if vehicle is traversing severed edge or heading to isolated node
             is_affected = False
             delay_h = 0.0
             reroute_desc = None
@@ -179,7 +211,6 @@ class DisasterSimulationEngine:
                     suggested_reroute_id=reroute_desc
                 ))
 
-                # Aggregate supplies
                 cargo_text = v["cargo_type"].lower()
                 if "oxygen" in cargo_text:
                     supplies_at_risk["liquid_oxygen_liters"] += 16000
@@ -196,7 +227,6 @@ class DisasterSimulationEngine:
         ai_reroutes: List[RoutePlan] = []
         if severed_edges:
             e = severed_edges[0]
-            # Try computing alternate route between severed edge endpoints
             src_pt, dst_pt = e["source"], e["target"]
             try:
                 alt_resp = smart_route_engine.optimize_route(
@@ -215,12 +245,55 @@ class DisasterSimulationEngine:
 
         # 4. Emergency Action Protocols
         emergency_protocols = [
-            f"🚨 DIGITAL TWIN ACTION PLAN: Disruption in {incident_loc}",
-            f"1. Priority Dispatch: Reroute {len(delayed_vehicles)} commercial freight vehicles to green corridors immediately.",
-            f"2. Health Department Alert: {len(isolated_districts)} districts flagged. Monitor hospital liquid oxygen reserves (< 5 days stock).",
-            f"3. PWD Infrastructure Mobilization: Deploy heavy excavators and emergency Bailey Bridge construction units to {incident_loc}.",
-            "4. Multi-Agency Coordination: Notify SDMA, NDRF 1st Battalion (Guwahati/Patgaon), and Food Corporation of India regional depots."
+            f"🚨 DIGITAL TWIN SIMULATION DISPATCH: {scenario_title}",
+            f"1. Priority Detour: Reroute {len(delayed_vehicles)} essential cargo convoys away from {incident_loc}.",
+            f"2. Health Resource Alert: {len(isolated_districts)} districts impacted. Hospital liquid oxygen reserves tracked.",
+            f"3. PWD Infrastructure Mobilization: Deploy heavy excavators and emergency Bailey Bridge units to {incident_loc}.",
+            "4. Multi-Agency Coordination: Notify SDMA, NDRF 1st Battalion, and Regional Emergency Operation Centres."
         ]
+
+        # 5. CROSS-ROLE PROPAGATION: Mutate Digital Twin In-Memory State!
+        from app.services.fleet_tracker import fleet_manager
+        for edge in fleet_manager.edges_state:
+            if edge["id"] == target_edge:
+                edge["status"] = "blocked"
+                edge["landslide_risk"] = 98.0
+                edge["closure_reason"] = f"SIMULATED DISASTER: {scenario_title}"
+
+        for node in fleet_manager.nodes_state:
+            if node["id"] in connectivity_matrix:
+                node["status"] = connectivity_matrix[node["id"]]
+
+        # Insert Emergency Alert into Alert Ticker
+        sim_alert = {
+            "id": f"sim_alt_{uuid.uuid4().hex[:4]}",
+            "timestamp": "SIMULATION ACTIVE",
+            "severity": "CRITICAL_DANGER",
+            "category": "LANDSLIDE" if "landslide" in scenario_title.lower() else ("FLOOD" if "flood" in scenario_title.lower() else "ROAD_CLOSURE"),
+            "location_tag": f"{incident_loc}",
+            "message_en": f"🚨 SIMULATION ALERT: {scenario_title}. Corridor impassable at {incident_loc}. Safe bypass reroutes engaged.",
+            "message_as": f"🚨 অনুৰূপ সতৰ্কবাণী: {incident_loc} ত দুৰ্যোগৰ ঘটনা। বিকল্প সুৰক্ষিত পথ ব্যৱহাৰ কৰক।",
+            "message_hi": f"🚨 सिमुलेशन अलर्ट: {incident_loc} पर भीषण आपदा सिमुलेट की गई। सुरक्षित वैकल्पिक मार्ग तैयार।",
+            "message_bn": f"🚨 সিমুলেশন সতর্কতা: {incident_loc} এ দুর্যোগ। নিরাপদ বাইপাস রুট সক্রিয়।",
+            "affected_routes": [target_edge],
+            "affected_districts": aff_districts
+        }
+        fleet_manager.alerts.insert(0, sim_alert)
+
+        # Store active simulation state
+        self.active_simulation = {
+            "scenario_title": scenario_title,
+            "incident_location": incident_loc,
+            "target_edge": target_edge,
+            "target_node": target_node,
+            "affected_districts": aff_districts,
+            "isolated_districts_count": len(isolated_districts),
+            "delayed_vehicles_count": len(delayed_vehicles),
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S IST")
+        }
+
+        # Rebuild routing graph
+        smart_route_engine.build_graph()
 
         return DisasterSimulationResponse(
             scenario_title=scenario_title,

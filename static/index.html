@@ -254,9 +254,14 @@
               <!-- Scenarios loaded via JS -->
             </div>
 
-            <button id="btn-run-simulation" class="btn-simulation-glow" style="width: 100%; justify-content: center;" onclick="triggerWhatIfSimulation()">
-              💥 Execute What-If Stress Simulation
-            </button>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button id="btn-run-simulation" class="btn-simulation-glow" style="flex: 2; justify-content: center;" onclick="triggerWhatIfSimulation()">
+                💥 Execute What-If Stress Simulation
+              </button>
+              <button class="btn-secondary" style="flex: 1; justify-content: center; font-size: 0.78rem;" onclick="resetSimulationState()">
+                🔄 Reset Baseline
+              </button>
+            </div>
           </div>
 
           <!-- Simulation Results Box -->

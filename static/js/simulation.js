@@ -1,12 +1,16 @@
 /**
  * NERA (North Eastern Resilience & Autonomous Logistics Engine)
- * Module 10: 'What-If' Disaster Simulation Sandbox UI Controller
+ * Module 10, 11 & 12: 'What-If' Disaster Simulation & Cross-Role Propagation Controller
  * 
- * Manages preset/custom scenario execution, evaluates isolated population metrics,
- * displays trapped hospital cargo tallies, and draws contingency detours on Leaflet.
+ * Features:
+ * - Real-time disaster propagation to all 3 roles (Admin, User / Citizen, Government Employee)
+ * - Map visualization with flashing severed corridors & dynamic risk polygons
+ * - User safe rerouting prompt with 1-click [Start Safe Route]
+ * - Instant Reset & Simulation Recovery
  */
 let selectedScenarioId = "scenario_sela_landslide";
 let lastSimulationResult = null;
+let simulationHazardLayer = null;
 
 async function loadSimulationScenarios() {
   try {
@@ -27,7 +31,7 @@ function renderScenarioOptions(scenarios) {
       <div class="scenario-title">🔥 ${s.title}</div>
       <div class="scenario-desc">${s.description}</div>
       <div style="font-size: 11px; color: #00f0ff; margin-top: 4px; font-family: var(--font-mono);">
-        Target: ${s.location}
+        Target Sector: ${s.location}
       </div>
     </div>
   `).join('');
@@ -44,7 +48,7 @@ function selectScenario(scenarioId) {
 async function triggerWhatIfSimulation() {
   const runBtn = document.getElementById('btn-run-simulation');
   if (runBtn) {
-    runBtn.innerHTML = '⚡ Computing Digital Twin Resilience Matrix...';
+    runBtn.innerHTML = '⚡ Propagating Digital Twin Simulation to All 3 Stakeholder Maps...';
     runBtn.disabled = true;
   }
 
@@ -62,7 +66,7 @@ async function triggerWhatIfSimulation() {
     const simResult = await res.json();
     lastSimulationResult = simResult;
     renderSimulationResults(simResult);
-    applySimulationToMap(simResult);
+    applySimulationToAllRoles(simResult);
   } catch (err) {
     console.error("Simulation failed:", err);
     alert("Simulation calculation failed: " + err.message);
@@ -75,15 +79,27 @@ async function triggerWhatIfSimulation() {
 }
 
 function renderSimulationResults(res) {
-  document.getElementById('sim-result-box').style.display = 'flex';
-  document.getElementById('sim-title-heading').innerText = res.scenario_title;
-  document.getElementById('sim-incident-loc').innerText = `📍 Disruption Epicenter: ${res.incident_location}`;
+  const box = document.getElementById('sim-result-box');
+  if (box) box.style.display = 'flex';
+
+  const heading = document.getElementById('sim-title-heading');
+  if (heading) heading.innerText = res.scenario_title;
+
+  const loc = document.getElementById('sim-incident-loc');
+  if (loc) loc.innerText = `📍 Disruption Epicenter: ${res.incident_location}`;
 
   // Metrics
-  document.getElementById('sim-isolated-count').innerText = res.isolated_districts.length;
-  document.getElementById('sim-pop-affected').innerText = res.total_population_affected.toLocaleString();
-  document.getElementById('sim-delayed-trucks').innerText = res.delayed_vehicles.length;
-  document.getElementById('sim-oxygen-at-risk').innerText = `${(res.critical_supplies_at_risk.liquid_oxygen_liters || 0).toLocaleString()} L`;
+  const isoEl = document.getElementById('sim-isolated-count');
+  if (isoEl) isoEl.innerText = res.isolated_districts.length;
+
+  const popEl = document.getElementById('sim-pop-affected');
+  if (popEl) popEl.innerText = res.total_population_affected.toLocaleString();
+
+  const delEl = document.getElementById('sim-delayed-trucks');
+  if (delEl) delEl.innerText = res.delayed_vehicles.length;
+
+  const oxEl = document.getElementById('sim-oxygen-at-risk');
+  if (oxEl) oxEl.innerText = `${(res.critical_supplies_at_risk.liquid_oxygen_liters || 0).toLocaleString()} L`;
 
   // Isolated Districts List
   const distList = document.getElementById('sim-isolated-districts-list');
@@ -124,35 +140,102 @@ function renderSimulationResults(res) {
   }
 }
 
-function applySimulationToMap(res) {
-  // Update district nodes colors based on connectivity matrix
-  if (twinData && twinData.districts) {
-    twinData.districts.forEach(d => {
-      if (res.connectivity_matrix[d.id]) {
-        d.status = res.connectivity_matrix[d.id];
-      }
-    });
-    renderDistricts(twinData.districts);
+function applySimulationToAllRoles(res) {
+  // 1. Refresh Digital Twin State & Map Elements
+  if (typeof fetchTwinState === 'function') fetchTwinState();
+  if (typeof loadActiveAlerts === 'function') loadActiveAlerts();
+
+  // 2. Add flashing red simulated hazard zone on map
+  if (window.map && window.layers && layers.hazards) {
+    // Draw simulation circle in epicenter
+    const simCircle = L.circle([27.2000, 92.4000], {
+      radius: 25000,
+      color: '#ff3366',
+      fillColor: '#ff3366',
+      fillOpacity: 0.35,
+      weight: 3,
+      dashArray: '6, 6'
+    }).bindPopup(`
+      <div style="font-family: Outfit, sans-serif;">
+        <div style="color: #ff3366; font-weight: 700; font-size: 14px;">🚨 SIMULATED DISASTER ZONE</div>
+        <div>${res.scenario_title}</div>
+        <div><strong>Epicenter:</strong> ${res.incident_location}</div>
+        <div style="color: #ff85a2; margin-top: 4px;">Corridor closed. Detour corridors active.</div>
+      </div>
+    `);
+    layers.hazards.addLayer(simCircle);
   }
 
-  // Draw AI alternate routes if generated
-  if (res.ai_generated_reroutes && res.ai_generated_reroutes.length > 0) {
+  // 3. User / Citizen Experience: Show Danger Alert & 1-Click Safe Reroute Prompt
+  showUserSimulatedHazardAlert(res);
+
+  // 4. Draw AI alternate corridors
+  if (res.ai_generated_reroutes && res.ai_generated_reroutes.length > 0 && window.layers && layers.activeRoute) {
     layers.activeRoute.clearLayers();
     res.ai_generated_reroutes.forEach((r, idx) => {
-      drawRouteOnMap(r.path_coordinates, idx === 0 ? '#00f0ff' : '#ffb800', idx > 0);
+      drawRouteOnMap(r.path_coordinates, idx === 0 ? '#00ff88' : '#00f0ff', idx > 0);
     });
+  }
+
+  // 5. Govt Employee experience: Update District Dashboard metrics
+  if (typeof onDistrictChange === 'function' && window.currentDistrictId) {
+    onDistrictChange(window.currentDistrictId);
+  }
+}
+
+function showUserSimulatedHazardAlert(res) {
+  const hud = document.getElementById('user-active-nav-hud');
+  if (hud) {
+    hud.style.display = 'block';
+    const warnBox = document.getElementById('hud-hazard-warning');
+    if (warnBox) {
+      warnBox.style.display = 'block';
+      warnBox.innerHTML = `
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>🚨 <strong>Route Severed:</strong> ${res.incident_location}</span>
+          <button class="btn-primary" style="padding: 2px 8px; font-size: 10px; background: #00ff88; color: #000;" onclick="deployEmergencyReroutePlan()">
+            ✓ Start Safe Route
+          </button>
+        </div>
+      `;
+    }
+  }
+}
+
+async function resetSimulationState() {
+  try {
+    const res = await fetch('/api/simulation/reset', { method: 'POST' });
+    const data = await res.json();
+    alert("🔄 Digital Twin simulation state reset. Highway network restored to baseline.");
+    
+    // Hide simulation results box
+    const box = document.getElementById('sim-result-box');
+    if (box) box.style.display = 'none';
+
+    // Clear hazard layers & redraw pristine twin state
+    if (typeof fetchTwinState === 'function') fetchTwinState();
+    if (typeof loadActiveAlerts === 'function') loadActiveAlerts();
+    if (window.layers && layers.activeRoute) layers.activeRoute.clearLayers();
+  } catch (e) {
+    console.error("Reset failed:", e);
   }
 }
 
 function deployEmergencyReroutePlan() {
   if (!lastSimulationResult) return;
-  alert(`🚨 EMERGENCY ACTION DEPLOYED: Dispatched AI alternate detour corridors to ${lastSimulationResult.delayed_vehicles.length} commercial drivers via satellite and mobile network.`);
+  alert(`🚨 EMERGENCY SAFE ROUTE ENGAGED: Navigation diverted along AI-calculated green corridor.`);
   
-  // Mark vehicles as rerouted
-  if (twinData && twinData.fleet) {
-    twinData.fleet.forEach(v => {
-      v.status = "rerouted";
-    });
-    renderFleet(twinData.fleet);
+  if (lastSimulationResult.ai_generated_reroutes && lastSimulationResult.ai_generated_reroutes.length > 0) {
+    const safeRoute = lastSimulationResult.ai_generated_reroutes[0];
+    if (typeof renderRouteResults === 'function') {
+      renderRouteResults({
+        recommended_route: safeRoute,
+        alternative_route: safeRoute,
+        source_name: "Origin Hub",
+        destination_name: "Destination Hub",
+        delay_delta_minutes: 25,
+        risk_reduction_pct: 82.0
+      });
+    }
   }
 }
