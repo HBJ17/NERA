@@ -211,6 +211,9 @@
         <button class="cockpit-tab-btn" data-tab="reports" onclick="switchTab('reports', this)">
           📱 Field Feeds
         </button>
+        <button class="cockpit-tab-btn" data-tab="analytics" onclick="switchTab('analytics', this)">
+          📊 Analytics
+        </button>
       </div>
 
       <!-- Tab Panes Body -->
@@ -516,6 +519,62 @@
             </div>
             <div id="field-reports-timeline" style="margin-top: 10px;">
               <!-- Rendered via JS -->
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 7: AI-GIS EXECUTIVE ANALYTICS -->
+        <div id="tab-analytics" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <!-- Logistics KPI Card -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>🚚 Logistics & Convoy Efficiency</span>
+              <span class="badge" style="background: rgba(0,255,136,0.15); color: var(--accent-green);">AI OPTIMIZED</span>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px;">
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Transit Time Saved</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent-green);" id="kpi-time-saved">-18.4%</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Fuel Savings Est.</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent-cyan);" id="kpi-fuel-saved">+14.6%</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--text-muted);">On-Time Delivery</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: #fff;" id="kpi-on-time">94.8%</div>
+              </div>
+              <div style="background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; text-align: center;">
+                <div style="font-size: 0.72rem; color: var(--text-muted);">Total Tonnage</div>
+                <div style="font-size: 1.3rem; font-weight: 700; color: var(--accent-amber);" id="kpi-tonnage">142 Tons</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Disaster & District Rankings Card -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>⛰️ High-Risk District Rankings (NER)</span>
+              <span class="badge" style="background: rgba(255,51,102,0.15); color: var(--accent-red);">HAZARD RISK</span>
+            </div>
+            <div id="analytics-district-rankings" style="margin-top: 6px;">
+              <!-- Populated via JS -->
+            </div>
+          </div>
+
+          <!-- Field Verification Turnaround -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>📱 Ground Truth Verification Metrics</span>
+              <span class="badge" style="background: rgba(0,240,255,0.15); color: var(--accent-cyan);">92.8% ACCURACY</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin: 4px 0;">
+              <span>Avg Verification Turnaround:</span>
+              <strong style="color: var(--accent-cyan);">14.2 Minutes</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin: 4px 0;">
+              <span>Avg PWD Heavy Clearance Time:</span>
+              <strong style="color: var(--accent-amber);">3.4 Hours</strong>
             </div>
           </div>
         </div>

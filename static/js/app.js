@@ -66,6 +66,10 @@ function switchTab(tabId, btn) {
   if (targetPane) {
     targetPane.style.display = 'flex';
   }
+
+  if (tabId === 'analytics' && typeof loadAnalyticsDashboard === 'function') {
+    loadAnalyticsDashboard();
+  }
 }
 
 async function switchRoleAndPersona(roleKey, btn, optDistrict) {
@@ -234,3 +238,45 @@ function focusOnVehicle(coords) {
     map.setView(coords, 11, { animate: true });
   }
 }
+
+async function loadAnalyticsDashboard() {
+  try {
+    const res = await fetch('/api/analytics/summary');
+    const summary = await res.json();
+
+    const log = summary.logistics;
+    const dis = summary.disasters;
+    const rep = summary.reports;
+
+    const timeEl = document.getElementById('kpi-time-saved');
+    if (timeEl) timeEl.innerText = `-${log.transit_time_savings_pct}%`;
+
+    const fuelEl = document.getElementById('kpi-fuel-saved');
+    if (fuelEl) fuelEl.innerText = `+${log.fuel_savings_estimate_pct}%`;
+
+    const onTimeEl = document.getElementById('kpi-on-time');
+    if (onTimeEl) onTimeEl.innerText = `${log.on_time_delivery_rate_pct}%`;
+
+    const tonEl = document.getElementById('kpi-tonnage');
+    if (tonEl) tonEl.innerText = `${log.total_cargo_weight_tons || 142} Tons`;
+
+    // Render high risk district rankings
+    const rankingsEl = document.getElementById('analytics-district-rankings');
+    if (rankingsEl && dis.high_risk_district_rankings) {
+      rankingsEl.innerHTML = dis.high_risk_district_rankings.map((r, idx) => `
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; margin-bottom: 5px;">
+          <div style="font-size: 12px; font-weight: 600; color: #fff;">
+            ${idx + 1}. ${r.district}
+            <div style="font-size: 10px; color: var(--text-muted);">${r.primary_hazard}</div>
+          </div>
+          <span class="badge" style="background: rgba(255,51,102,0.2); color: #ff3366; font-size: 11px; font-weight: 700;">
+            ${r.risk_index}% Risk
+          </span>
+        </div>
+      `).join('');
+    }
+  } catch (e) {
+    console.warn("Analytics fetch fallback:", e);
+  }
+}
+

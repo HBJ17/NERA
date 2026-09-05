@@ -317,5 +317,37 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         self.assertEqual(corridor["status"], "DISPATCHED")
         self.assertEqual(corridor["cargo"], "Cold-Chain Vaccines")
 
+    def test_12_districts_and_executive_analytics(self):
+        # 1. All Districts (32 Strategic Hubs across 8 NE states)
+        resp = client.get("/api/districts/all")
+        self.assertEqual(resp.status_code, 200)
+        dists = resp.json()
+        self.assertGreaterEqual(len(dists), 30)
+
+        # 2. Districts by State (Assam, Nagaland, Arunachal, Manipur)
+        resp = client.get("/api/districts/state/Nagaland")
+        self.assertEqual(resp.status_code, 200)
+        nagaland_dists = resp.json()
+        self.assertGreaterEqual(len(nagaland_dists), 2)
+        self.assertTrue(all(d["state"] == "Nagaland" for d in nagaland_dists))
+
+        # 3. Summary Stats across all 8 states
+        resp = client.get("/api/districts/summary-stats")
+        self.assertEqual(resp.status_code, 200)
+        stats = resp.json()
+        self.assertGreaterEqual(stats["total_states"], 8)
+        self.assertGreater(stats["total_population"], 1000000)
+
+        # 4. Executive Analytics Summary
+        resp = client.get("/api/analytics/summary")
+        self.assertEqual(resp.status_code, 200)
+        summary = resp.json()
+        self.assertIn("logistics", summary)
+        self.assertIn("disasters", summary)
+        self.assertIn("reports", summary)
+        self.assertGreaterEqual(summary["logistics"]["transit_time_savings_pct"], 10.0)
+        self.assertGreaterEqual(summary["disasters"]["total_historical_incidents"], 50)
+        self.assertGreaterEqual(summary["reports"]["verification_accuracy_rate_pct"], 90.0)
+
 if __name__ == "__main__":
     unittest.main()
