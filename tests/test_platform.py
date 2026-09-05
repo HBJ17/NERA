@@ -283,5 +283,39 @@ class TestNERLogisticsPlatform(unittest.TestCase):
         self.assertEqual(fusion["active_streams_count"], 4)
         self.assertGreater(fusion["fused_corridors_count"], 0)
 
+    def test_11_role_scoped_alerts_and_emergency_management(self):
+        # 1. Scoped Alerts for Admin
+        resp = client.get("/api/alerts/scoped?role=admin")
+        self.assertEqual(resp.status_code, 200)
+        admin_alerts = resp.json()
+        self.assertGreater(len(admin_alerts), 0)
+
+        # 2. Scoped Alerts for Govt Employee in Kohima
+        resp = client.get("/api/alerts/scoped?role=gov_employee&district_id=node_kohima")
+        self.assertEqual(resp.status_code, 200)
+        gov_alerts = resp.json()
+        self.assertGreater(len(gov_alerts), 0)
+
+        # 3. Emergency Protocols & Active Green Corridors
+        resp = client.get("/api/emergency/protocols")
+        self.assertEqual(resp.status_code, 200)
+        proto = resp.json()
+        self.assertIn("green_corridors", proto)
+        self.assertIn("resource_prioritization", proto)
+
+        # 4. Dispatch new Green Corridor
+        resp = client.post("/api/emergency/dispatch-green-corridor", json={
+            "title": "Pediatric Vaccine Air-Ground Corridor",
+            "origin": "Guwahati Hub",
+            "destination": "Tawang Civil Hospital",
+            "cargo": "Cold-Chain Vaccines",
+            "highway": "NH-13",
+            "eta_hours": 7.5
+        })
+        self.assertEqual(resp.status_code, 200)
+        corridor = resp.json()
+        self.assertEqual(corridor["status"], "DISPATCHED")
+        self.assertEqual(corridor["cargo"], "Cold-Chain Vaccines")
+
 if __name__ == "__main__":
     unittest.main()

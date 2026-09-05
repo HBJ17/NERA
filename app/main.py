@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 from app.config import settings
-from app.routers import twin, prediction, routing, simulation, fleet, reports, alerts, roles, district_employee, weather
+from app.routers import twin, prediction, routing, simulation, fleet, reports, alerts, roles, district_employee, weather, emergency
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
@@ -30,6 +30,7 @@ app.add_middleware(
 app.include_router(roles.router, prefix=settings.API_PREFIX)
 app.include_router(district_employee.router, prefix=settings.API_PREFIX)
 app.include_router(weather.router, prefix=settings.API_PREFIX)
+app.include_router(emergency.router, prefix=settings.API_PREFIX)
 app.include_router(twin.router, prefix=settings.API_PREFIX)
 app.include_router(prediction.router, prefix=settings.API_PREFIX)
 app.include_router(routing.router, prefix=settings.API_PREFIX)
