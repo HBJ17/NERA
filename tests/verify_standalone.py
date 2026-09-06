@@ -141,10 +141,30 @@ def run_standalone_checks():
     assert spof_payload["choke_points_count"] >= 4
     print(f"[OK] 12. District Vulnerability Index & SPOF: {dvi_payload['total_districts']} Districts Ranked, {spof_payload['choke_points_count']} Choke Points: OK")
 
-    print("\n>>> ALL 12 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 13. Multi-Modal Emergency Disaster Logistics
+    ww_res = client.get("/api/emergency/inland-waterways")
+    assert ww_res.status_code == 200
+    ww_list = ww_res.json()
+    assert len(ww_list) >= 6
+
+    alg_res = client.get("/api/emergency/airbridge-algs")
+    assert alg_res.status_code == 200
+    alg_list = alg_res.json()
+    assert len(alg_list) >= 6
+
+    mm_res = client.get("/api/emergency/multimodal-contingency?origin=Guwahati&destination=Tawang")
+    assert mm_res.status_code == 200
+    mm_data = mm_res.json()
+    assert "waterway_nw2" in mm_data
+    assert "airbridge" in mm_data
+    assert "bro_bailey_bridge" in mm_data
+    print(f"[OK] 13. Multi-Modal Emergency Logistics: {len(ww_list)} NW-2 River Ports, {len(alg_list)} ALGs, Airbridge & Bailey Bridging: OK")
+
+    print("\n>>> ALL 13 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 
 
 
