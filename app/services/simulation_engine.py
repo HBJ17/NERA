@@ -27,6 +27,7 @@ from app.models.schemas import (
     IsolatedDistrictReport,
     AffectedVehicleReport,
     RoutePlan,
+    RouteRequest,
     EmergencyAlert
 )
 
@@ -41,7 +42,7 @@ class DisasterSimulationEngine:
         "scenario_sela_landslide": {
             "title": "Severe Landslide Blockade at Sela Pass Corridor (NH-13)",
             "location": "Sela Pass Viaduct / Baisakhi - Tawang Sector",
-            "target_edge": "edge_bomdila_tawang",
+            "target_edge": "edge_dirang_tawang",
             "target_node": "node_tawang",
             "affected_districts": ["Tawang", "West Kameng"],
             "description": "Massive 2,000 cu.m debris fall has completely blocked NH-13 at 13,700 ft elevation. Sub-zero temperatures hindering heavy earthmover clearance."
@@ -49,8 +50,8 @@ class DisasterSimulationEngine:
         "scenario_saraighat_flood": {
             "title": "Catastrophic Flood Surge on Saraighat Bridge Corridor",
             "location": "Brahmaputra River - Guwahati North Bank Link",
-            "target_edge": "edge_siliguri_guwahati",
-            "target_node": "bridge_saraighat",
+            "target_edge": "edge_barpeta_guwahati",
+            "target_node": "node_guwahati",
             "affected_districts": ["Guwahati", "Kamrup"],
             "description": "Brahmaputra river level surged 1.4m above extreme danger level. PWD closed bridge deck to heavy cargo convoys due to hydrodynamic turbulence."
         },
@@ -65,7 +66,7 @@ class DisasterSimulationEngine:
         "scenario_teesta_gorge_cut": {
             "title": "NH-10 Teesta River Gorge Submergence & Rockfall",
             "location": "NH-10 29th Mile - Sikkim Lifeline",
-            "target_edge": "edge_siliguri_gangtok",
+            "target_edge": "edge_kalimpong_gangtok",
             "target_node": "node_gangtok",
             "affected_districts": ["Gangtok", "Mangan"],
             "description": "Teesta river overflowed retaining walls with simultaneous rock slides. Land connection to Gangtok severed for 72 hours."
@@ -425,7 +426,7 @@ class DisasterSimulationEngine:
             src_pt, dst_pt = e["source"], e["target"]
             try:
                 alt_resp = smart_route_engine.optimize_route(
-                    smart_route_engine.RouteRequest(
+                    RouteRequest(
                         source_id=src_pt,
                         destination_id=dst_pt,
                         custom_avoid_edges=[target_edge]

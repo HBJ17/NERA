@@ -173,12 +173,16 @@ function applyRolePermissions(roleKey) {
   const tabSupplies = document.querySelector('[data-tab="supplies"]');
   const tabReports = document.querySelector('[data-tab="reports"]');
   const tabAnalytics = document.querySelector('[data-tab="analytics"]');
-  const simHeaderBtn = document.querySelector('.btn-simulation-glow');
+  const simHeaderBtn = document.getElementById('btn-header-simulation');
+  const sihShowcaseBtn = document.getElementById('btn-header-sih-showcase');
   const officerBanner = document.getElementById('district-officer-banner');
   const userReportCard = document.getElementById('user-report-action-card');
   const reportsFilterBar = document.getElementById('reports-filter-bar');
   const reportsSectionTitle = document.getElementById('reports-section-title');
   const reportsSectionBadge = document.getElementById('reports-section-badge');
+
+  // SIH Showcase button is always visible across all roles for hackathon evaluation
+  if (sihShowcaseBtn) sihShowcaseBtn.style.display = 'inline-flex';
 
   if (roleKey === 'admin') {
     // Admin: ALL existing features enabled
@@ -508,12 +512,20 @@ function closeSihShowcaseModal() {
 async function runJuryDemoScenario(type) {
   closeSihShowcaseModal();
   if (type === 'disaster_detour') {
+    // Ensure admin mode is active so simulation controls are fully interactive
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      const adminBtn = document.getElementById('role-btn-admin');
+      if (adminBtn) await switchRoleAndPersona('admin', adminBtn);
+    }
     const simTab = document.querySelector('[data-tab="simulation"]');
     if (simTab) simTab.click();
     setTimeout(() => {
+      if (typeof selectScenarioCard === 'function') {
+        selectScenarioCard('scenario_sela_landslide');
+      }
       const runBtn = document.getElementById('btn-run-simulation');
       if (runBtn) runBtn.click();
-    }, 400);
+    }, 300);
   } else if (type === 'field_closed_loop') {
     openFieldReportModal();
     setTimeout(() => {
@@ -523,10 +535,16 @@ async function runJuryDemoScenario(type) {
       if (loc) loc.value = "Sela Pass Summit (NH-13, 13,700 ft)";
       if (desc) desc.value = "Massive rockfall and frozen debris completely blocking arterial corridor to Tawang.";
       if (sev) sev.value = "BLOCKING";
+      showToast("💡 <b>Demo 2 Prepared:</b> Geotagged incident loaded. Click 'Submit Incident Report' to trigger live PWD verification and dynamic rerouting.", 4500);
     }, 200);
   } else if (type === 'data_fusion_dvi') {
+    if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
+      const adminBtn = document.getElementById('role-btn-admin');
+      if (adminBtn) await switchRoleAndPersona('admin', adminBtn);
+    }
     const anTab = document.querySelector('[data-tab="analytics"]');
     if (anTab) anTab.click();
+    if (typeof loadDviMatrix === 'function') loadDviMatrix();
   }
 }
 

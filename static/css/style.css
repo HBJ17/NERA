@@ -212,7 +212,32 @@ body {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-sih-showcase {
+  background: linear-gradient(135deg, rgba(255, 184, 0, 0.25) 0%, rgba(255, 215, 0, 0.45) 100%);
+  border: 1px solid #ffd700;
+  color: #ffd700;
+  box-shadow: 0 0 14px rgba(255, 215, 0, 0.35);
+  font-weight: 700;
+  font-size: 0.8rem;
+  padding: 7px 14px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.btn-sih-showcase:hover {
+  transform: translateY(-1px) scale(1.02);
+  box-shadow: 0 0 24px rgba(255, 215, 0, 0.6);
+  background: linear-gradient(135deg, rgba(255, 184, 0, 0.35) 0%, rgba(255, 215, 0, 0.6) 100%);
 }
 
 .btn-simulation-glow {
@@ -220,16 +245,18 @@ body {
   color: white;
   border: none;
   font-weight: 700;
-  font-size: 0.82rem;
-  padding: 8px 16px;
+  font-size: 0.8rem;
+  padding: 7px 14px;
   border-radius: var(--radius-full);
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   box-shadow: var(--shadow-glow-red);
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   animation: pulseButton 2.5s infinite;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .btn-simulation-glow:hover {
@@ -554,8 +581,19 @@ body {
   border-bottom: 1px solid var(--border-subtle);
   background: var(--bg-primary);
   overflow-x: auto;
-  padding: 4px 8px 0;
-  gap: 4px;
+  padding: 4px 6px 0;
+  gap: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 240, 255, 0.35) transparent;
+}
+
+.cockpit-tabs-header::-webkit-scrollbar {
+  height: 4px;
+}
+
+.cockpit-tabs-header::-webkit-scrollbar-thumb {
+  background: rgba(0, 240, 255, 0.35);
+  border-radius: 4px;
 }
 
 .cockpit-tab-btn {
@@ -563,25 +601,29 @@ body {
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-secondary);
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  padding: 10px 14px;
+  padding: 8px 12px;
   cursor: pointer;
   white-space: nowrap;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   transition: all 0.2s ease;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
 }
 
 .cockpit-tab-btn:hover {
   color: #fff;
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .cockpit-tab-btn.active {
   color: var(--accent-cyan);
   border-bottom-color: var(--accent-cyan);
-  background: rgba(0, 240, 255, 0.05);
+  background: rgba(0, 240, 255, 0.08);
+  font-weight: 700;
 }
 
 .cockpit-body {

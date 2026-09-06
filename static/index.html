@@ -79,15 +79,15 @@
 
     <!-- Header Right Actions -->
     <div class="header-actions">
-      <button class="btn-simulation-glow" style="background: linear-gradient(135deg, rgba(255, 184, 0, 0.2), rgba(255, 215, 0, 0.35)); border-color: #ffd700; color: #ffd700; box-shadow: 0 0 14px rgba(255, 215, 0, 0.3);" onclick="openSihShowcaseModal()">
+      <button id="btn-header-sih-showcase" class="btn-sih-showcase" onclick="openSihShowcaseModal()" title="Open Smart India Hackathon Live Jury Showcase">
         🏆 SIH SHOWCASE
       </button>
 
-      <button class="btn-simulation-glow" onclick="document.querySelector('[data-tab=\'simulation\']').click()">
+      <button id="btn-header-simulation" class="btn-simulation-glow" onclick="document.querySelector('[data-tab=\'simulation\']').click()" title="Switch to What-If Disaster Simulation Cockpit">
         💥 WHAT-IF SIMULATION
       </button>
       
-      <button class="btn-report-hazard" onclick="openFieldReportModal()">
+      <button id="btn-header-report" class="btn-report-hazard" onclick="openFieldReportModal()" title="Report real-time road hazard or blockage">
         📷 REPORT HAZARD
         <span id="offline-queue-count" style="display: none; background: var(--accent-red); color: #fff; font-size: 10px; padding: 1px 5px; border-radius: 99px; font-family: var(--font-mono);">0</span>
       </button>

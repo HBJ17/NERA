@@ -205,7 +205,7 @@ function applySimulationToAllRoles(res) {
   if (res.ai_generated_reroutes && res.ai_generated_reroutes.length > 0 && activeRouteGroup) {
     activeRouteGroup.clearLayers();
     res.ai_generated_reroutes.forEach((r, idx) => {
-      drawRouteOnMap(r.path_coordinates, idx === 0 ? '#00ff88' : '#00f0ff', idx > 0);
+      drawRouteOnMap(r.path_coordinates, idx === 0 ? '#00ff88' : '#00f0ff', idx > 0, false);
     });
   }
 
@@ -414,22 +414,37 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
 window.triggerPointHazard = triggerPointHazard;
 
 async function simulateRouteHazard() {
-  if (window.activeRouteResponse && window.activeRouteResponse.recommended_route && window.activeRouteResponse.recommended_route.path_coordinates && window.activeRouteResponse.recommended_route.path_coordinates.length > 2) {
-    const coords = window.activeRouteResponse.recommended_route.path_coordinates;
-    const midPoint = coords[Math.floor(coords.length * 0.45)];
-    showToast(`⚡ <b>What-If Disaster Simulation Triggered!</b><br>Injecting landslide on active path at [${midPoint[0].toFixed(3)}, ${midPoint[1].toFixed(3)}]...`, 3500);
-    await triggerPointHazard(midPoint[0], midPoint[1], 'landslide');
-  } else {
-    showToast(`⚡ <b>Planning Route & Simulating Hazard...</b><br>Computing Guwahati ➔ Shillong and injecting mountain blockage...`, 3500);
-    if (typeof planSmartRoute === 'function') {
-      await planSmartRoute('node_guwahati', 'node_shillong');
-      setTimeout(async () => {
-        if (window.activeRouteResponse && window.activeRouteResponse.recommended_route) {
-          const coords = window.activeRouteResponse.recommended_route.path_coordinates;
-          const pt = coords[Math.floor(coords.length * 0.45)] || [25.82, 91.86];
-          await triggerPointHazard(pt[0], pt[1], 'landslide');
-        }
-      }, 1000);
+  const btn = document.getElementById('btn-simulate-route-hazard');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '⚡ Simulating Landslide & Calculating AI Safe Detour...';
+  }
+
+  try {
+    // If no active route exists or route has less than 2 points, first plan Guwahati -> Shillong corridor
+    if (!window.activeRouteResponse || !window.activeRouteResponse.recommended_route || !window.activeRouteResponse.recommended_route.path_coordinates || window.activeRouteResponse.recommended_route.path_coordinates.length < 2) {
+      showToast(`⚡ <b>Planning Baseline Arterial Corridor...</b><br>Computing Guwahati ➔ Shillong highway...`, 2500);
+      if (typeof planSmartRoute === 'function') {
+        await planSmartRoute('node_guwahati', 'node_shillong');
+      }
+    }
+
+    // Determine hazard injection coordinate along active corridor
+    let pt = [25.8200, 91.8600]; // Nongpoh mountain highway pass default
+    if (window.activeRouteResponse && window.activeRouteResponse.recommended_route && window.activeRouteResponse.recommended_route.path_coordinates && window.activeRouteResponse.recommended_route.path_coordinates.length > 2) {
+      const coords = window.activeRouteResponse.recommended_route.path_coordinates;
+      pt = coords[Math.floor(coords.length * 0.45)] || pt;
+    }
+
+    showToast(`⚡ <b>Disaster Blockage Injected!</b><br>Landslide at [${pt[0].toFixed(3)}, ${pt[1].toFixed(3)}]. AI computing live dynamic diversion...`, 3500);
+    await triggerPointHazard(pt[0], pt[1], 'landslide');
+  } catch (err) {
+    console.error("simulateRouteHazard error:", err);
+    showToast(`⚠️ <b>Hazard Simulation Notice:</b> ${err.message}`, 4000);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '⚠️ SIMULATE REAL-TIME HAZARD & AUTO-DETOUR';
     }
   }
 }

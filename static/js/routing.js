@@ -257,10 +257,10 @@ function renderRouteResults(data) {
   // Draw on Leaflet map
   if (window.layers && layers.activeRoute) {
     layers.activeRoute.clearLayers();
-    if (alt && alt.route_id !== rec.route_id) {
-      drawRouteOnMap(alt.path_coordinates, '#ffb800', true);
+    if (alt && alt.path_coordinates && alt.route_id !== rec.route_id) {
+      drawRouteOnMap(alt.path_coordinates, '#ffb800', true, false);
     }
-    drawRouteOnMap(rec.path_coordinates, '#00f0ff', false);
+    drawRouteOnMap(rec.path_coordinates, '#00f0ff', false, false);
 
     // Zoom map to fit route
     if (rec.path_coordinates && rec.path_coordinates.length > 0 && window.map) {

@@ -616,19 +616,21 @@ function setUserLocationMarker(coords) {
   }
 }
 
-function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false) {
-  if (!isSecondary) {
+function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false, clearFirst = false) {
+  if (clearFirst && layers.activeRoute) {
     layers.activeRoute.clearLayers();
   }
 
   const routeLine = L.polyline(routeCoordinates, {
     color: color,
     weight: isSecondary ? 4 : 6,
-    opacity: isSecondary ? 0.6 : 0.95,
-    dashArray: isSecondary ? '5, 10' : null
+    opacity: isSecondary ? 0.75 : 0.95,
+    dashArray: isSecondary ? '6, 8' : null
   });
 
-  layers.activeRoute.addLayer(routeLine);
+  if (layers.activeRoute) {
+    layers.activeRoute.addLayer(routeLine);
+  }
 
   if (!isSecondary && routeCoordinates.length >= 2) {
     const startPt = routeCoordinates[0];
