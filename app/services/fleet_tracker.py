@@ -119,16 +119,48 @@ class FleetAndFieldManager:
         return synced_records
 
     def _propagate_field_report_to_twin(self, record: FieldReportRecord):
-        # Match nearest highway edge
+        # Match nearest highway edge by code/name
         hw = record.nearest_highway.lower().replace("-", "").replace(" ", "")
+        matched_edge = None
         for edge in self.edges_state:
             e_hw = edge["highway_code"].lower().replace("-", "").replace(" ", "")
-            if hw in e_hw or e_hw in hw:
-                if record.severity in ("HIGH", "BLOCKING"):
-                    edge["status"] = "blocked" if record.severity == "BLOCKING" else "warning"
-                    edge["landslide_risk"] = max(edge.get("landslide_risk", 10.0), 88.0)
-                    edge["closure_reason"] = f"Verified Incident ({record.incident_type}): {record.description[:60]}..."
+            if hw and (hw in e_hw or e_hw in hw):
+                matched_edge = edge
                 break
+
+        # Spatial fallback: match by geographical proximity to report coordinates
+        if not matched_edge and record.latitude and record.longitude:
+            node_coords = {n["id"]: n["coordinates"] for n in NER_DISTRICT_NODES}
+            best_dist = float("inf")
+            for edge in self.edges_state:
+                c1 = node_coords.get(edge["source"])
+                c2 = node_coords.get(edge["target"])
+                if c1 and c2:
+                    mid_lat = (c1[0] + c2[0]) / 2.0
+                    mid_lng = (c1[1] + c2[1]) / 2.0
+                    d = (mid_lat - record.latitude)**2 + (mid_lng - record.longitude)**2
+                    if d < best_dist:
+                        best_dist = d
+                        matched_edge = edge
+
+        if matched_edge:
+            if record.severity in ("HIGH", "BLOCKING"):
+                matched_edge["status"] = "blocked" if record.severity == "BLOCKING" else "warning"
+                matched_edge["landslide_risk"] = max(matched_edge.get("landslide_risk", 10.0), 88.0)
+                matched_edge["closure_reason"] = f"Verified Incident ({record.incident_type}): {record.description[:60]}..."
+                
+                # Check if active freight convoys are delayed
+                for v in self.fleet:
+                    if matched_edge["highway_code"].lower() in v.get("route_id", "").lower() or matched_edge["source"] in v.get("destination", "").lower():
+                        v["status"] = "delayed"
+                        v["delay_reason"] = f"Corridor severed by verified {record.incident_type}"
+
+        # Propagate closed-loop graph update to routing engine immediately
+        try:
+            from app.services.routing_engine import smart_route_engine
+            smart_route_engine.build_graph()
+        except Exception:
+            pass
 
         # Generate live emergency alert
         new_alert = {

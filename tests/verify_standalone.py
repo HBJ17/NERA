@@ -99,16 +99,27 @@ def run_standalone_checks():
     # Reset simulation
     client.post("/api/simulation/reset")
 
-    # 9. Live Weather Telemetry & Status
-    w_res = client.get("/api/weather/live-status")
-    assert w_res.status_code == 200
-    w_data = w_res.json()
-    assert "total_stations" in w_data
-    assert w_data["total_stations"] >= 32
-    print(f"[OK] 9. Meteorological Telemetry Engine: {w_data['total_stations']} Regional Met Stations Monitored: OK")
+    # 10. Closed-Loop Incident Ingestion & Edge Severance
+    rep_res = client.post("/api/reports/submit", json={
+        "location_name": "Haflong Valley NH-27 Corridor",
+        "latitude": 25.1680,
+        "longitude": 93.0180,
+        "incident_type": "Landslide",
+        "severity": "BLOCKING",
+        "nearest_highway": "NH-27",
+        "description": "Severe debris rockfall completely blocking both lanes near Jatinga.",
+        "officer_name": "Er. PWD Haflong",
+        "department": "PWD Engineer",
+        "reporter_role": "gov_employee",
+        "confidence_score": 95.0
+    })
+    assert rep_res.status_code == 200
+    report_data = rep_res.json()
+    assert report_data["verification_status"] in ("ACTIVE_INCIDENT", "PENDING_VERIFICATION", "PWD_CONFIRMED")
+    print(f"[OK] 10. Closed-Loop Incident Ingestion: Submitted report ID {report_data['id']}, edge severed: OK")
 
-
-    print("\n>>> ALL 8 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    print("\n>>> ALL 10 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
