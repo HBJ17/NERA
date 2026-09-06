@@ -297,15 +297,6 @@ class SmartRouteEngine:
         except Exception:
             resilient_plan = primary_plan
 
-        # Try overlaying high-precision OSRM geometry onto the primary route if available
-        osrm_data = self.fetch_osrm_real_route(src_coords, dst_coords)
-        if osrm_data and primary_plan:
-            # If OSRM returned high resolution coordinates, enhance primary plan
-            primary_plan.path_coordinates = osrm_data["coordinates"]
-            if osrm_data["distance_km"] > 0:
-                primary_plan.total_distance_km = osrm_data["distance_km"]
-                primary_plan.total_travel_time_hours = osrm_data["duration_hours"]
-
         # Metrics
         if primary_plan and resilient_plan:
             time_diff_min = int((resilient_plan.total_travel_time_hours - primary_plan.total_travel_time_hours) * 60)
@@ -406,9 +397,18 @@ class SmartRouteEngine:
             elif edge_data.get("status") == "blocked":
                 instruction += f" 🚫 BLOCKED: {edge_data.get('closure_reason', 'Road severed')}"
 
-            poly = edge_data.get("coordinates_polyline", [self.nodes_dict[u]["coordinates"], self.nodes_dict[v]["coordinates"]])
+            poly = list(edge_data.get("coordinates_polyline", [self.nodes_dict[u]["coordinates"], self.nodes_dict[v]["coordinates"]]))
+            if len(poly) >= 2:
+                # Ensure polyline connects sequentially from u -> v
+                u_coord = self.nodes_dict[u]["coordinates"]
+                v_coord = self.nodes_dict[v]["coordinates"]
+                d_start_u = (poly[0][0] - u_coord[0])**2 + (poly[0][1] - u_coord[1])**2
+                d_start_v = (poly[0][0] - v_coord[0])**2 + (poly[0][1] - v_coord[1])**2
+                if d_start_v < d_start_u:
+                    poly = list(reversed(poly))
+
             for pt in poly:
-                if not path_coords or path_coords[-1] != pt:
+                if not path_coords or (path_coords[-1][0] != pt[0] or path_coords[-1][1] != pt[1]):
                     path_coords.append(pt)
 
             segments.append(RouteSegment(

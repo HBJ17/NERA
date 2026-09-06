@@ -354,7 +354,7 @@ function renderHighways(highways) {
         <div><strong>Flood Risk:</strong> ${edge.flood_risk}% | <strong>Rain:</strong> ${edge.rainfall_mm} mm</div>
         <div><strong>Status:</strong> <span style="text-transform: uppercase; font-weight: 700;">${edge.status}</span></div>
         ${edge.closure_reason ? `<div style="color: #fca5a5; margin-top: 4px; font-size: 12px;">⚠️ ${edge.closure_reason}</div>` : ''}
-        <button class="user-nav-btn-go" style="background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #f87171; color: #fff; padding: 6px 10px; font-weight: 700; font-size: 11px; margin-top: 8px; width: 100%; box-shadow: 0 2px 10px rgba(239,68,68,0.4);" onclick="promptTriggerPointHazard(${midLat}, ${midLng})">
+        <button class="user-nav-btn-go" style="background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #f87171; color: #fff; padding: 6px 10px; font-weight: 700; font-size: 11px; margin-top: 8px; width: 100%; box-shadow: 0 2px 10px rgba(239,68,68,0.4);" onclick="promptTriggerPointHazard(${midLat}, ${midLng}, '${edge.id}')">
           💥 Simulate Hazard on this Corridor
         </button>
       </div>
@@ -616,17 +616,24 @@ function setUserLocationMarker(coords) {
   }
 }
 
-function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false, clearFirst = false) {
+function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false, clearFirst = false, label = '', isBlocked = false) {
   if (clearFirst && layers.activeRoute) {
     layers.activeRoute.clearLayers();
   }
 
+  const isDanger = isBlocked || color === '#ef4444' || color === '#ff3366';
+  const isSafe = color === '#00ff88' || color === '#10b981';
+
   const routeLine = L.polyline(routeCoordinates, {
-    color: color,
-    weight: isSecondary ? 4 : 6,
-    opacity: isSecondary ? 0.75 : 0.95,
-    dashArray: isSecondary ? '6, 8' : null
+    color: isDanger ? '#ef4444' : (isSafe ? '#00ff88' : color),
+    weight: isDanger ? 6 : (isSafe ? 7 : (isSecondary ? 4 : 6)),
+    opacity: isDanger ? 0.85 : (isSecondary ? 0.75 : 0.95),
+    dashArray: isDanger ? '8, 8' : (isSecondary ? '6, 8' : null)
   });
+
+  if (label) {
+    routeLine.bindTooltip(label, { sticky: true, className: isDanger ? 'badge-danger-tooltip' : 'badge-safe-tooltip' });
+  }
 
   if (layers.activeRoute) {
     layers.activeRoute.addLayer(routeLine);
@@ -636,19 +643,21 @@ function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false
     const startPt = routeCoordinates[0];
     const endPt = routeCoordinates[routeCoordinates.length - 1];
 
-    const startMarker = L.circleMarker(startPt, {
-      radius: 8,
-      color: '#00ff88',
-      fillColor: '#00ff88',
-      fillOpacity: 1
-    }).bindPopup("<strong>Start Point</strong>");
+    const startIcon = L.divIcon({
+      className: 'start-route-pin',
+      html: `<div style="background: #00ff88; color: #030712; font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 10px #00ff88; white-space: nowrap;">🚩 ORIGIN</div>`,
+      iconSize: [70, 22],
+      iconAnchor: [35, 11]
+    });
+    const startMarker = L.marker(startPt, { icon: startIcon }).bindPopup("<strong>🚩 Origin Hub</strong>");
 
-    const endMarker = L.circleMarker(endPt, {
-      radius: 8,
-      color: '#ff3366',
-      fillColor: '#ff3366',
-      fillOpacity: 1
-    }).bindPopup("<strong>Destination</strong>");
+    const endIcon = L.divIcon({
+      className: 'dest-route-pin',
+      html: `<div style="background: #00f0ff; color: #030712; font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 10px #00f0ff; white-space: nowrap;">🏁 DESTINATION</div>`,
+      iconSize: [100, 22],
+      iconAnchor: [50, 11]
+    });
+    const endMarker = L.marker(endPt, { icon: endIcon }).bindPopup("<strong>🏁 Target Destination</strong>");
 
     layers.activeRoute.addLayer(startMarker);
     layers.activeRoute.addLayer(endMarker);
@@ -665,6 +674,35 @@ function drawRouteOnMap(routeCoordinates, color = '#00f0ff', isSecondary = false
     }
   }
 }
+
+function showMapHazardBanner(incidentName = 'Disaster Blockade Active', highwayCode = 'Corridor', delayMins = 35) {
+  let banner = document.getElementById('floating-map-hazard-banner');
+  if (!banner) {
+    banner = document.createElement('div');
+    banner.id = 'floating-map-hazard-banner';
+    banner.className = 'map-hazard-banner';
+    const mapContainer = document.getElementById('map-view');
+    if (mapContainer) mapContainer.appendChild(banner);
+  }
+
+  banner.innerHTML = `
+    <span style="font-size: 1.1rem; animation: pulse 1s infinite;">💥</span>
+    <div>
+      <div style="font-weight: 800; color: #fca5a5; font-size: 0.82rem;">🚨 SEVERED: ${highwayCode}</div>
+      <div style="font-size: 0.72rem; color: #94a3b8;">🟢 AI Safe Bypass active (+${delayMins} min detour)</div>
+    </div>
+    <button class="map-hazard-btn-reset" onclick="resetSimulationState()">🔄 Reset Highway</button>
+  `;
+  banner.style.display = 'flex';
+}
+
+function hideMapHazardBanner() {
+  const banner = document.getElementById('floating-map-hazard-banner');
+  if (banner) banner.style.display = 'none';
+}
+window.showMapHazardBanner = showMapHazardBanner;
+window.hideMapHazardBanner = hideMapHazardBanner;
+
 
 function updateHudStats(data) {
   const trkEl = document.getElementById('hud-active-trucks');

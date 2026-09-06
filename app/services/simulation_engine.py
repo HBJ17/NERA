@@ -96,9 +96,9 @@ class DisasterSimulationEngine:
         smart_route_engine.build_graph()
         return {"status": "reset", "message": "Digital Twin simulation reset to normal baseline."}
 
-    def trigger_hazard_at_point(self, lat: float, lng: float, disaster_type: str = "landslide", severity: str = "HIGH") -> Dict[str, Any]:
+    def trigger_hazard_at_point(self, lat: float, lng: float, disaster_type: str = "landslide", severity: str = "HIGH", edge_id: Optional[str] = None) -> Dict[str, Any]:
         """
-        Dynamically simulates a disaster blockage at the closest highway corridor to (lat, lng).
+        Dynamically simulates a disaster blockage at the closest highway corridor to (lat, lng) or matching edge_id.
         Mutates fleet_manager edges_state, rebuilds graph, and identifies affected vehicles and reroutes.
         """
         from app.services.fleet_tracker import fleet_manager
@@ -107,18 +107,25 @@ class DisasterSimulationEngine:
         best_dist = float("inf")
         nodes_dict = {n["id"]: n for n in NER_DISTRICT_NODES}
 
-        for edge in fleet_manager.edges_state:
-            poly = edge.get("coordinates_polyline", [])
-            if not poly:
-                u_coord = nodes_dict.get(edge["source"], {}).get("coordinates", [26.0, 92.0])
-                v_coord = nodes_dict.get(edge["target"], {}).get("coordinates", [26.0, 92.0])
-                poly = [u_coord, v_coord]
-
-            for pt in poly:
-                d = ((pt[0] - lat)**2 + (pt[1] - lng)**2)**0.5
-                if d < best_dist:
-                    best_dist = d
+        if edge_id:
+            for edge in fleet_manager.edges_state:
+                if edge["id"] == edge_id:
                     best_edge = edge
+                    break
+
+        if not best_edge:
+            for edge in fleet_manager.edges_state:
+                poly = edge.get("coordinates_polyline", [])
+                if not poly:
+                    u_coord = nodes_dict.get(edge["source"], {}).get("coordinates", [26.0, 92.0])
+                    v_coord = nodes_dict.get(edge["target"], {}).get("coordinates", [26.0, 92.0])
+                    poly = [u_coord, v_coord]
+
+                for pt in poly:
+                    d = ((pt[0] - lat)**2 + (pt[1] - lng)**2)**0.5
+                    if d < best_dist:
+                        best_dist = d
+                        best_edge = edge
 
         if not best_edge:
             best_edge = fleet_manager.edges_state[0]

@@ -47,23 +47,27 @@ def reset_simulation():
     return disaster_sim_engine.reset_simulation()
 
 from pydantic import BaseModel
+from typing import Optional
 
 class PointHazardRequest(BaseModel):
     lat: float
     lng: float
     disaster_type: str = "landslide"
     severity: str = "HIGH"
+    edge_id: Optional[str] = None
 
 @router.post("/trigger-point")
 def trigger_hazard_at_point(req: PointHazardRequest):
     """
-    Triggers an instant disaster blockage at the closest road corridor to (lat, lng).
+    Triggers an instant disaster blockage at the closest road corridor to (lat, lng) or matching edge_id.
     Mutates digital twin network and prompts real-time vehicle & commuter rerouting.
     """
     return disaster_sim_engine.trigger_hazard_at_point(
         lat=req.lat,
         lng=req.lng,
         disaster_type=req.disaster_type,
-        severity=req.severity
+        severity=req.severity,
+        edge_id=req.edge_id
     )
+
 

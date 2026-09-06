@@ -544,9 +544,14 @@
             <button id="btn-calculate-route" class="btn-primary" onclick="planSmartRoute()">
               🗺️ Calculate AI Optimal Route
             </button>
-            <button id="btn-simulate-route-hazard" class="btn-secondary" style="background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.35)); border-color: #ef4444; color: #fca5a5; font-weight: 700; margin-top: 8px; box-shadow: 0 0 12px rgba(239,68,68,0.25);" onclick="simulateRouteHazard()" title="Simulate real-time mountain disaster along the route to see live dynamic diversion">
-              ⚡ What-If: Simulate Hazard on Route
-            </button>
+            <div style="display: flex; gap: 8px; margin-top: 8px;">
+              <button id="btn-simulate-route-hazard" class="btn-secondary" style="flex: 1; background: linear-gradient(135deg, rgba(239,68,68,0.25), rgba(220,38,38,0.45)); border-color: #ef4444; color: #fca5a5; font-weight: 700; box-shadow: 0 0 12px rgba(239,68,68,0.25);" onclick="simulateRouteHazard()" title="Simulate real-time mountain disaster along the route to see live dynamic diversion">
+                💥 Simulate Hazard on Route
+              </button>
+              <button id="btn-reset-route-hazard" class="btn-secondary" style="background: rgba(0,240,255,0.15); border-color: var(--accent-cyan); color: #00f0ff; font-weight: 700; padding: 6px 12px;" onclick="resetSimulationState()" title="Restore direct highway and reset hazard simulation">
+                🔄 Reset
+              </button>
+            </div>
           </div>
 
           <!-- Route Results Container -->
@@ -555,6 +560,9 @@
               AI Safe Corridor Route
             </div>
             <div id="route-weather-adv" style="font-size: 0.75rem; color: #94a3b8;"></div>
+
+            <!-- Dynamic Live Reroute Diff Container -->
+            <div id="route-dynamic-reroute-diff" style="display: none;"></div>
 
             <div class="impact-metrics-grid" style="margin: 8px 0;">
               <div class="impact-metric-card" style="background: rgba(0,240,255,0.08); border-color: rgba(0,240,255,0.25);">

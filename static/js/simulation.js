@@ -265,11 +265,18 @@ async function resetSimulationState() {
   try {
     const res = await fetch('/api/simulation/reset', { method: 'POST' });
     const data = await res.json();
-    alert("🔄 Digital Twin simulation state reset. Highway network restored to baseline.");
+    showToast("🔄 <b>Digital Twin Network Restored</b><br>All simulated hazards cleared & direct highway corridors reopened.", 3500);
     
     // Hide simulation results box
     const box = document.getElementById('sim-result-box');
     if (box) box.style.display = 'none';
+
+    // Hide diff box in routing tab
+    const diffBox = document.getElementById('route-dynamic-reroute-diff');
+    if (diffBox) diffBox.style.display = 'none';
+
+    // Hide on-map floating hazard banner
+    if (typeof hideMapHazardBanner === 'function') hideMapHazardBanner();
 
     // Remove simulated hazard circle from map
     const hazardGroup = (window.layers && window.layers.hazards) || (typeof layers !== 'undefined' && layers.hazards);
@@ -279,74 +286,68 @@ async function resetSimulationState() {
       window.simulationHazardLayer = null;
     }
 
+    const simGroup = (window.layers && window.layers.simulation) || (typeof layers !== 'undefined' && layers.simulation);
+    if (simGroup) simGroup.clearLayers();
+
     // Hide hazard banner in HUD if open
     const warnBox = document.getElementById('hud-hazard-warning');
     if (warnBox) warnBox.style.display = 'none';
 
-    // Clear active routes and redraw pristine twin state
-    const activeRouteGroup = (window.layers && window.layers.activeRoute) || (typeof layers !== 'undefined' && layers.activeRoute);
-    if (activeRouteGroup) activeRouteGroup.clearLayers();
-
     if (typeof fetchTwinState === 'function') fetchTwinState();
     if (typeof loadActiveAlerts === 'function') loadActiveAlerts();
+
+    // Re-calculate pristine route if dropdowns are set
+    const srcSel = document.getElementById('route-source-select');
+    const dstSel = document.getElementById('route-dest-select');
+    if (srcSel && dstSel && srcSel.value && dstSel.value && srcSel.value !== dstSel.value && typeof planSmartRoute === 'function') {
+      planSmartRoute(srcSel.value, dstSel.value);
+    }
   } catch (e) {
     console.error("Reset failed:", e);
+    showToast(`⚠️ Reset Notice: ${e.message}`, 3000);
   }
 }
+window.resetSimulationState = resetSimulationState;
 
 function deployEmergencyReroutePlan() {
   if (!lastSimulationResult) return;
   
   if (lastSimulationResult.ai_generated_reroutes && lastSimulationResult.ai_generated_reroutes.length > 0) {
-    const safeRoute = lastSimulationResult.ai_generated_reroutes[0];
-    
-    // Switch to routing tab
-    const routeTabBtn = document.querySelector('[data-tab="routing"]');
-    if (routeTabBtn && typeof switchTab === 'function') {
-      switchTab('routing', routeTabBtn);
+    const r = lastSimulationResult.ai_generated_reroutes[0];
+    if (window.layers && layers.activeRoute) {
+      layers.activeRoute.clearLayers();
+      drawRouteOnMap(r.path_coordinates, '#00ff88', false, false, '🟢 AI Safe Reroute Corridor');
     }
-
-    if (typeof renderRouteResults === 'function') {
-      renderRouteResults({
-        recommended_route: safeRoute,
-        alternative_route: safeRoute,
-        source_name: "Strategic Origin Hub",
-        destination_name: "Target Relief Destination",
-        delay_delta_minutes: 25,
-        risk_reduction_pct: 82.0
-      });
-    }
-
-    if (typeof startActiveNavigation === 'function') {
-      startActiveNavigation();
-    }
+    showToast(`🛡️ <b>EMERGENCY REROUTE ACTIVE!</b><br>Diverting all logistics through ${r.title}.`, 4000);
   }
-
-  alert(`🚨 EMERGENCY SAFE ROUTE ENGAGED:\n\nNavigation diverted along AI-calculated green corridor bypass. Severed mountain sector avoided.`);
 }
 
-function promptTriggerPointHazard(lat, lng) {
+function promptTriggerPointHazard(lat, lng, edgeId = null) {
   if (window.map) {
     window.map.closePopup();
   }
-  // Directly trigger point hazard without relying on native confirm dialogs that can be blocked
-  triggerPointHazard(lat, lng, 'landslide');
+  triggerPointHazard(lat, lng, 'landslide', edgeId);
 }
 window.promptTriggerPointHazard = promptTriggerPointHazard;
 
-async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
-  showToast(`⚡ <b>Simulating Hazard...</b><br>Injecting disaster blockage at (${lat}, ${lng})...`, 2500);
+async function triggerPointHazard(lat, lng, disasterType = 'landslide', edgeId = null) {
+  showToast(`⚡ <b>Simulating Disaster Hazard...</b><br>Injecting ${disasterType} blockage at coordinates [${Number(lat).toFixed(3)}, ${Number(lng).toFixed(3)}]...`, 3000);
 
   try {
+    const payload = {
+      lat: lat,
+      lng: lng,
+      disaster_type: disasterType,
+      severity: 'TOTAL_BREACH'
+    };
+    if (edgeId) {
+      payload.edge_id = edgeId;
+    }
+
     const res = await fetch('/api/simulation/trigger-point', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        lat: lat,
-        lng: lng,
-        disaster_type: disasterType,
-        severity: 'TOTAL_BREACH'
-      })
+      body: JSON.stringify(payload)
     });
 
     if (!res.ok) {
@@ -356,7 +357,13 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
     const simResult = await res.json();
     lastSimulationResult = simResult;
 
-    // 1. Draw pulsing red hazard zone and marker on dedicated simulation layer
+    // 1. Switch sidebar tab to Smart Routing so the user can immediately see the route diff & instructions
+    const routeTabBtn = document.querySelector('[data-tab="routing"]');
+    if (routeTabBtn && typeof switchTab === 'function') {
+      switchTab('routing', routeTabBtn);
+    }
+
+    // 2. Draw pulsing red hazard zone and marker on dedicated simulation layer
     const simGroup = (window.layers && window.layers.simulation) || (typeof layers !== 'undefined' && layers.simulation);
     if (simGroup) {
       if (window.map && !window.map.hasLayer(simGroup)) {
@@ -365,17 +372,17 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
       simGroup.clearLayers();
 
       const hazardCircle = L.circle([lat, lng], {
-        radius: 16000,
-        color: '#ff3366',
-        fillColor: '#ff3366',
-        fillOpacity: 0.45,
+        radius: 18000,
+        color: '#ef4444',
+        fillColor: '#ef4444',
+        fillOpacity: 0.4,
         weight: 3,
         dashArray: '6, 6'
       });
 
       const hazardIcon = L.divIcon({
         className: 'custom-hazard-marker',
-        html: `<div style="background: #ff3366; color: #fff; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 16px #ff3366; white-space: nowrap; animation: pulse 1s infinite;">💥 BLOCKED: ${simResult.severed_highway || 'Hazard Sector'}</div>`,
+        html: `<div style="background: #ef4444; color: #fff; font-weight: 800; font-size: 11px; padding: 4px 10px; border-radius: 12px; border: 2px solid #fff; box-shadow: 0 0 16px #ef4444; white-space: nowrap;">💥 BLOCKED: ${simResult.severed_highway || 'Hazard Sector'}</div>`,
         iconSize: [140, 24],
         iconAnchor: [70, 12]
       });
@@ -383,10 +390,10 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
 
       hazardMarker.bindPopup(`
         <div style="font-family: Outfit, sans-serif; font-size: 13px;">
-          <div style="color: #ff3366; font-weight: 800; font-size: 14px;">🚨 SIMULATED DISASTER HAZARD</div>
+          <div style="color: #ef4444; font-weight: 800; font-size: 14px;">🚨 SIMULATED DISASTER HAZARD</div>
           <div style="font-weight: 700; color: #fff; margin: 2px 0;">${simResult.severed_highway || 'Corridor'}</div>
           <div><strong>Location:</strong> ${simResult.incident_location}</div>
-          <div style="color: #fca5a5; font-size: 11px; margin-top: 4px;">Status: Severed / Total Road Closure. Dynamic AI Safe Bypass Active.</div>
+          <div style="color: #fca5a5; font-size: 11px; margin-top: 4px;">Status: 🚫 Severed / Total Road Closure. Dynamic AI Safe Bypass Active.</div>
         </div>
       `);
 
@@ -395,20 +402,23 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
       hazardMarker.openPopup();
     }
 
-    // 2. Render simulation details in the sidebar
+    // 3. Show top on-map floating status banner
+    if (typeof showMapHazardBanner === 'function') {
+      showMapHazardBanner(simResult.scenario_title, simResult.severed_highway, 35);
+    }
+
+    // 4. Render simulation details in the sidebar
     renderSimulationResults(simResult);
 
-    // 3. Refresh digital twin state so the severed road reflects on map immediately
+    // 5. Refresh digital twin state so the severed road reflects on map immediately
     if (typeof fetchTwinState === 'function') fetchTwinState();
     if (typeof loadActiveAlerts === 'function') loadActiveAlerts();
 
-    // 4. Trigger Real-Time Dynamic Rerouting!
+    // 6. Trigger Real-Time Dynamic Rerouting!
     showToast(`💥 <b>Disaster Injected!</b><br>${simResult.severed_highway} blocked. Evaluating real-time diversion...`, 3000);
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (typeof planSmartRoute === 'function') {
-        showToast(`🔄 <b>REAL-TIME DYNAMIC REROUTE TRIGGERED!</b><br>AI safely calculating alternate corridor around blockage...`, 4000);
-
         let src = document.getElementById('route-source-select') ? document.getElementById('route-source-select').value : null;
         let dst = document.getElementById('route-dest-select') ? document.getElementById('route-dest-select').value : null;
 
@@ -425,13 +435,12 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
           if (dstSel) dstSel.value = dst;
         }
 
-        planSmartRoute(src, dst).then(() => {
-          if (typeof startActiveNavigation === 'function') {
-            startActiveNavigation();
-          }
-        });
+        await planSmartRoute(src, dst);
+        if (typeof startActiveNavigation === 'function') {
+          startActiveNavigation();
+        }
       }
-    }, 400);
+    }, 200);
 
   } catch (err) {
     console.error("Point hazard simulation error:", err);
@@ -542,28 +551,71 @@ async function simulateRouteHazard() {
   const btn = document.getElementById('btn-simulate-route-hazard');
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = '⚡ Simulating Landslide & Calculating AI Safe Detour...';
+    btn.innerHTML = '⚡ Simulating Landslide & Recalculating AI Safe Corridor...';
   }
 
   try {
     const srcSel = document.getElementById('route-source-select');
     const dstSel = document.getElementById('route-dest-select');
-    if (srcSel) srcSel.value = 'node_guwahati';
-    if (dstSel) dstSel.value = 'node_shillong';
-
-    showToast(`⚡ <b>Simulating Disaster on Guwahati-Shillong Corridor...</b><br>Planning arterial route and injecting rockfall at Umiam Gorge...`, 3000);
     
-    if (typeof planSmartRoute === 'function') {
-      await planSmartRoute('node_guwahati', 'node_shillong');
+    let src = srcSel ? srcSel.value : 'node_guwahati';
+    let dst = dstSel ? dstSel.value : 'node_tawang';
+
+    if (!src || !dst || src === dst) {
+      src = 'node_guwahati';
+      dst = 'node_tawang';
+      if (srcSel) srcSel.value = src;
+      if (dstSel) dstSel.value = dst;
     }
 
-    // Now inject point hazard at Umiam / Nongpoh corridor
-    const pt = [25.8200, 91.8600]; // Nongpoh-Umiam sector
-    await triggerPointHazard(pt[0], pt[1], 'landslide');
+    // Ensure we have active route data for these endpoints
+    if (!window.activeRouteResponse || !window.activeRouteResponse.recommended_route) {
+      if (typeof planSmartRoute === 'function') {
+        await planSmartRoute(src, dst);
+      }
+    }
 
-    // Pan map directly to Nongpoh landslide
+    // Identify hazard point on the currently calculated route
+    let hazardPt = null;
+    if (window.activeRouteResponse && window.activeRouteResponse.recommended_route) {
+      const rec = window.activeRouteResponse.recommended_route;
+      if (rec.segments && rec.segments.length > 0) {
+        // Pick an intermediate segment (preferably middle or 1st mountain pass)
+        const targetIdx = rec.segments.length > 1 ? Math.floor(rec.segments.length / 2) : 0;
+        const targetSeg = rec.segments[targetIdx];
+        if (targetSeg.coordinates && targetSeg.coordinates.length > 0) {
+          hazardPt = targetSeg.coordinates[Math.floor(targetSeg.coordinates.length / 2)];
+        }
+      }
+      if (!hazardPt && rec.path_coordinates && rec.path_coordinates.length > 0) {
+        hazardPt = rec.path_coordinates[Math.floor(rec.path_coordinates.length / 2)];
+      }
+    }
+
+    // Fallback: calculate midpoint between nodes
+    if (!hazardPt && window.twinData && window.twinData.districts) {
+      const nSrc = window.twinData.districts.find(d => d.id === src);
+      const nDst = window.twinData.districts.find(d => d.id === dst);
+      if (nSrc && nDst) {
+        hazardPt = [
+          (nSrc.coordinates[0] + nDst.coordinates[0]) / 2,
+          (nSrc.coordinates[1] + nDst.coordinates[1]) / 2
+        ];
+      }
+    }
+
+    if (!hazardPt) {
+      hazardPt = [27.0800, 92.1800]; // Default Balemu-Kalaktang Pass
+    }
+
+    showToast(`💥 <b>Simulating Hazard on Active Route...</b><br>Injecting rockfall failure at coordinates [${hazardPt[0].toFixed(3)}, ${hazardPt[1].toFixed(3)}]...`, 3000);
+
+    // Inject point hazard at this sector
+    await triggerPointHazard(hazardPt[0], hazardPt[1], 'landslide');
+
+    // Focus map on the hazard area
     if (window.map) {
-      map.setView([25.8200, 91.8600], 9, { animate: true });
+      map.setView(hazardPt, 9, { animate: true });
     }
   } catch (err) {
     console.error("simulateRouteHazard error:", err);
@@ -571,11 +623,12 @@ async function simulateRouteHazard() {
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '⚠️ SIMULATE REAL-TIME HAZARD & AUTO-DETOUR';
+      btn.innerHTML = '💥 Simulate Hazard on Route';
     }
   }
 }
 window.simulateRouteHazard = simulateRouteHazard;
+
 
 
 

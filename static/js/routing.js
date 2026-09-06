@@ -254,24 +254,96 @@ function renderRouteResults(data) {
   const rec = data.recommended_route;
   const alt = data.alternative_route;
 
+  const hasBypass = alt && alt.path_coordinates && (alt.route_id !== rec.route_id || (alt.segments && alt.segments.some(s => s.status === 'blocked')));
+  const isBlockedBypass = hasBypass && (alt.segments && alt.segments.some(s => s.status === 'blocked' || s.landslide_risk > 70));
+
   // Draw on Leaflet map
   if (window.layers && layers.activeRoute) {
     layers.activeRoute.clearLayers();
-    if (alt && alt.path_coordinates && alt.route_id !== rec.route_id) {
-      drawRouteOnMap(alt.path_coordinates, '#ffb800', true, false);
+    if (hasBypass) {
+      // Draw the blocked / original severed route in crimson red with dashed lines
+      drawRouteOnMap(alt.path_coordinates, isBlockedBypass ? '#ef4444' : '#ffb800', true, false, isBlockedBypass ? '🔴 Original Impassable Highway (Blocked)' : '🟡 Alternative Secondary Route', isBlockedBypass);
     }
-    drawRouteOnMap(rec.path_coordinates, '#00f0ff', false, false);
+    // Draw the recommended AI safe route in vibrant neon emerald / cyan
+    drawRouteOnMap(rec.path_coordinates, hasBypass ? '#00ff88' : '#00f0ff', false, false, '🟢 AI Recommended Safe Corridor');
 
     // Zoom map to fit route
     if (rec.path_coordinates && rec.path_coordinates.length > 0 && window.map) {
       const bounds = L.latLngBounds(rec.path_coordinates);
-      map.fitBounds(bounds, { padding: [40, 40] });
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
+
+  // Render Dynamic Reroute Diff Box if bypass is active
+  const diffBox = document.getElementById('route-dynamic-reroute-diff');
+  if (diffBox) {
+    if (hasBypass) {
+      const distDelta = Math.max(0, Math.round(rec.total_distance_km - (alt.total_distance_km || rec.total_distance_km)));
+      const timeDeltaMins = data.delay_delta_minutes || 0;
+      
+      diffBox.innerHTML = `
+        <div class="reroute-diff-card">
+          <div class="diff-status-bar">
+            <span class="diff-badge-danger">🔴 SEVERED DIRECT CORRIDOR</span>
+            <span style="font-weight: 800; color: #fff; font-size: 1rem;">➔</span>
+            <span class="diff-badge-success">🟢 AI RESILIENT BYPASS ACTIVE</span>
+          </div>
+          
+          <div class="diff-columns-grid">
+            <div class="diff-pane diff-pane-severed">
+              <div class="diff-pane-title" style="color: #fca5a5;">
+                <span>🚫</span> Direct Highway
+              </div>
+              <div class="diff-metric-row">
+                <span>Distance:</span>
+                <strong>${alt.total_distance_km} km</strong>
+              </div>
+              <div class="diff-metric-row">
+                <span>Speed / Status:</span>
+                <strong style="color: #ef4444;">0 km/h (BLOCKED)</strong>
+              </div>
+              <div class="diff-metric-row">
+                <span>Hazard Risk:</span>
+                <strong style="color: #ef4444;">${alt.aggregate_risk_score}/100 ⚠️</strong>
+              </div>
+            </div>
+
+            <div class="diff-pane diff-pane-safe">
+              <div class="diff-pane-title" style="color: #86efac;">
+                <span>🛡️</span> AI Safe Corridor
+              </div>
+              <div class="diff-metric-row">
+                <span>Distance:</span>
+                <strong>${rec.total_distance_km} km (+${distDelta} km)</strong>
+              </div>
+              <div class="diff-metric-row">
+                <span>Transit Time:</span>
+                <strong>${rec.total_travel_time_hours} hrs (+${timeDeltaMins} min)</strong>
+              </div>
+              <div class="diff-metric-row">
+                <span>Hazard Risk:</span>
+                <strong style="color: #00ff88;">${rec.aggregate_risk_score}/100 🟢</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="diff-cargo-alert">
+            🚚 <strong>Critical Supplies Safeguarded:</strong> Rerouted convoy carrying Liquid Medical Oxygen (-183°C) & Vaccines away from hill failure zone.
+          </div>
+        </div>
+      `;
+      diffBox.style.display = 'block';
+    } else {
+      diffBox.style.display = 'none';
     }
   }
 
   // Update Metrics HTML if elements exist
   const titleEl = document.getElementById('route-rec-title');
-  if (titleEl) titleEl.innerText = rec.title;
+  if (titleEl) {
+    titleEl.innerHTML = hasBypass ? `🛡️ <strong>AI Dynamic Resilient Safe Bypass</strong>` : `🗺️ <strong>AI Optimal Safe Corridor</strong>`;
+    titleEl.style.color = hasBypass ? '#00ff88' : 'var(--accent-cyan)';
+  }
 
   const distEl = document.getElementById('route-rec-dist');
   if (distEl) distEl.innerText = `${rec.total_distance_km} km`;
@@ -282,7 +354,7 @@ function renderRouteResults(data) {
   const riskEl = document.getElementById('route-rec-risk');
   if (riskEl) {
     riskEl.innerText = `${rec.aggregate_risk_score}/100`;
-    riskEl.style.color = rec.aggregate_risk_score > 40 ? '#ffb800' : '#00ff88';
+    riskEl.style.color = rec.aggregate_risk_score > 40 ? '#ef4444' : '#00ff88';
   }
 
   const advEl = document.getElementById('route-weather-adv');
@@ -304,9 +376,9 @@ function renderRouteResults(data) {
   const deltaEl = document.getElementById('route-time-delta');
   if (deltaEl) {
     let deltaText = data.delay_delta_minutes !== 0 ? 
-      `${data.delay_delta_minutes > 0 ? '+' : ''}${data.delay_delta_minutes} min vs Highway` : 'Direct Fast Highway Corridor';
+      `⏱️ ${data.delay_delta_minutes > 0 ? '+' : ''}${data.delay_delta_minutes} min detour vs direct line` : '🟢 Direct Clear Corridor';
     if (rec.red_zone_count === 0) {
-      deltaText += ' · 🟢 100% Safe Corridor (Zero Red Zones)';
+      deltaText += ' · 🟢 100% Passable (Zero Hazards)';
     }
     deltaEl.innerText = deltaText;
   }
@@ -426,7 +498,7 @@ function startActiveNavigation() {
     document.getElementById('hud-turn-text').innerText = rec.segments[0].instructions;
   }
 
-  const hasCaution = rec.segments.some(s => s.status === 'warning' || s.landslide_risk > 45);
+  const hasCaution = rec.segments.some(s => s.status === 'warning' || s.landslide_risk > 45 || s.status === 'blocked');
   const warnBox = document.getElementById('hud-hazard-warning');
   if (warnBox) {
     warnBox.style.display = hasCaution ? 'block' : 'none';
@@ -435,11 +507,17 @@ function startActiveNavigation() {
     }
   }
 
+  const hudStats = document.querySelector('.map-hud-stats');
+  if (hudStats) hudStats.style.display = 'none';
+
   hud.style.display = 'block';
 }
 
 function closeNavigationHUD() {
   const hud = document.getElementById('user-active-nav-hud');
   if (hud) hud.style.display = 'none';
+  const hudStats = document.querySelector('.map-hud-stats');
+  if (hudStats) hudStats.style.display = 'flex';
 }
+
 
