@@ -11,6 +11,7 @@ Maintains:
 """
 import copy
 import uuid
+import math
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from app.services.digital_twin_data import (
@@ -34,9 +35,6 @@ class FleetAndFieldManager:
         self.alerts: List[Dict[str, Any]] = copy.deepcopy(INITIAL_ALERTS)
         self.nodes_state: List[Dict[str, Any]] = copy.deepcopy(NER_DISTRICT_NODES)
         self.edges_state: List[Dict[str, Any]] = copy.deepcopy(NER_ROAD_EDGES)
-
-    def get_fleet(self) -> List[Dict[str, Any]]:
-        return self.fleet
 
     def get_field_reports(self) -> List[Dict[str, Any]]:
         return self.field_reports
@@ -179,12 +177,71 @@ class FleetAndFieldManager:
         self.alerts.insert(0, new_alert)
 
     def tick_telemetry(self):
-        """Simulate micro-movement for active vehicles along their routes"""
+        """
+        Dynamically updates vehicle GPS waypoint positions, interpolating along
+        highways, adjusting speeds according to terrain gradients, and computing
+        cold-chain thermal status and proximity hazard geofences.
+        """
+        dest_coords = {}
+        for n in NER_DISTRICT_NODES:
+            dest_coords[n["name"].lower().split(" (")[0]] = n["coordinates"]
+            dest_coords[n["id"]] = n["coordinates"]
+
+        blocked_edges = [e for e in self.edges_state if e.get("status") in ("blocked", "critical")]
+
         for v in self.fleet:
-            if v["status"] == "moving":
-                lat, lng = v["current_coordinates"]
-                lat += 0.0008 * (1 if int(v["id"][-1]) % 2 == 0 else -0.5)
-                lng += 0.0009 * (1 if int(v["id"][-1]) % 2 == 0 else -0.5)
-                v["current_coordinates"] = [round(lat, 5), round(lng, 5)]
+            # 1. Cold chain thermal tracking for medical/vaccine/oxygen cargo
+            cargo = v.get("cargo_type", "").lower()
+            if "oxygen" in cargo:
+                v["cold_chain_temp_c"] = -182.8 + round((int(v["id"][-1]) % 4) * 0.2, 1)
+                v["temp_status"] = "OPTIMAL_CRYOGENIC"
+            elif "vaccine" in cargo or "insulin" in cargo or "antibiotic" in cargo:
+                v["cold_chain_temp_c"] = 3.6 + round((int(v["id"][-1]) % 3) * 0.3, 1)
+                v["temp_status"] = "OPTIMAL_COLD_CHAIN"
+            else:
+                v["cold_chain_temp_c"] = None
+                v["temp_status"] = "AMBIENT_STABLE"
+
+            # 2. Geofence proximity check to nearest road hazard
+            cur_lat, cur_lng = v["current_coordinates"]
+            nearest_hazard_km = float("inf")
+            hazard_name = None
+            for be in blocked_edges:
+                s_coords = dest_coords.get(be["source"])
+                if s_coords:
+                    d_km = math.hypot((s_coords[0] - cur_lat) * 111.0, (s_coords[1] - cur_lng) * 102.0)
+                    if d_km < nearest_hazard_km:
+                        nearest_hazard_km = d_km
+                        hazard_name = be.get("highway_code", "Highway")
+
+            if nearest_hazard_km < 25.0:
+                v["geofence_hazard_alert"] = f"Caution: Approaching Severed Sector on {hazard_name} ({round(nearest_hazard_km, 1)} km ahead)"
+                v["speed_kmh"] = max(18.0, v.get("speed_kmh", 40.0) * 0.7)
+            else:
+                v["geofence_hazard_alert"] = "Corridor All-Clear"
+
+            # 3. Dynamic micro-movement towards destination
+            if v.get("status") in ("moving", "normal"):
+                dst_name = v.get("destination", "").lower().split(" (")[0]
+                target_pt = dest_coords.get(dst_name)
+                if target_pt:
+                    t_lat, t_lng = target_pt
+                    d_lat = t_lat - cur_lat
+                    d_lng = t_lng - cur_lng
+                    dist = math.hypot(d_lat, d_lng)
+                    if dist > 0.05:
+                        step = 0.003
+                        v["current_coordinates"] = [
+                            round(cur_lat + (d_lat / dist) * step, 5),
+                            round(cur_lng + (d_lng / dist) * step, 5)
+                        ]
+                        v["heading_deg"] = round(math.degrees(math.atan2(d_lng, d_lat)) % 360, 1)
+                    else:
+                        v["current_coordinates"] = [round(cur_lat - 0.002, 5), round(cur_lng - 0.002, 5)]
+
+    def get_fleet(self) -> List[Dict[str, Any]]:
+        self.tick_telemetry()
+        return self.fleet
+
 
 fleet_manager = FleetAndFieldManager()

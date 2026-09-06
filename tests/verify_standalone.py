@@ -160,10 +160,21 @@ def run_standalone_checks():
     assert "bro_bailey_bridge" in mm_data
     print(f"[OK] 13. Multi-Modal Emergency Logistics: {len(ww_list)} NW-2 River Ports, {len(alg_list)} ALGs, Airbridge & Bailey Bridging: OK")
 
-    print("\n>>> ALL 13 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 14. Real-time Convoy Telemetry, Cold-Chain & Geofence Monitoring
+    f_res = client.get("/api/fleet/live")
+    assert f_res.status_code == 200
+    fleet_live = f_res.json()
+    o2_trucks = [v for v in fleet_live if "oxygen" in v.get("cargo_type", "").lower()]
+    assert len(o2_trucks) >= 1
+    assert o2_trucks[0]["temp_status"] == "OPTIMAL_CRYOGENIC"
+    assert "geofence_hazard_alert" in o2_trucks[0]
+    print(f"[OK] 14. Convoy GPS Telemetry: Cold-Chain Monitoring ({o2_trucks[0]['cold_chain_temp_c']}°C) & Geofencing Active: OK")
+
+    print("\n>>> ALL 14 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 
 
 
