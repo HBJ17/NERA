@@ -348,6 +348,17 @@
               <span id="pred-risk-tier" class="badge">ANALYZING</span>
             </div>
 
+            <!-- Open-Meteo Live API Met Sync Card -->
+            <div style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: var(--radius-sm); padding: 8px 12px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+              <div>
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--accent-cyan);" id="live-met-status-title">🛰️ Met Telemetry: Open-Meteo Synced</div>
+                <div style="font-size: 0.68rem; color: var(--text-muted);" id="live-met-sync-time">32 Met Stations Active</div>
+              </div>
+              <button class="btn-primary" style="padding: 4px 10px; font-size: 0.72rem;" onclick="triggerLiveMetSync(this)">
+                🔄 Sync Live IMD/WMO
+              </button>
+            </div>
+
             <!-- Sliders -->
             <div class="slider-control-group">
               <div class="slider-label">

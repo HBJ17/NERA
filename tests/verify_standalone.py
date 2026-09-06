@@ -99,6 +99,15 @@ def run_standalone_checks():
     # Reset simulation
     client.post("/api/simulation/reset")
 
+    # 9. Live Weather Telemetry & Status
+    w_res = client.get("/api/weather/live-status")
+    assert w_res.status_code == 200
+    w_data = w_res.json()
+    assert "total_stations" in w_data
+    assert w_data["total_stations"] >= 32
+    print(f"[OK] 9. Meteorological Telemetry Engine: {w_data['total_stations']} Regional Met Stations Monitored: OK")
+
+
     print("\n>>> ALL 8 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":

@@ -283,3 +283,27 @@ function renderDataFusionCard(data) {
     `).join('')}
   `;
 }
+
+async function triggerLiveMetSync(btn) {
+  if (btn) {
+    btn.disabled = true;
+    btn.innerText = "⏳ Syncing Open-Meteo...";
+  }
+  try {
+    const res = await fetch('/api/weather/sync-live', { method: 'POST' });
+    const data = await res.json();
+    const statusElem = document.getElementById('live-met-status-title');
+    const timeElem = document.getElementById('live-met-sync-time');
+    if (statusElem) statusElem.innerText = `🛰️ Met Telemetry: ${data.synced_count} Live Stations`;
+    if (timeElem) timeElem.innerText = `${data.sync_source || 'Live Open-Meteo API'}`;
+    await loadWeatherRadarAndFusion();
+  } catch (err) {
+    console.error("Live weather sync error:", err);
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerText = "🔄 Sync Live IMD/WMO";
+    }
+  }
+}
+
