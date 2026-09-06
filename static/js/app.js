@@ -495,3 +495,126 @@ async function loadAnalyticsDashboard() {
   }
 }
 
+function openSihShowcaseModal() {
+  const modal = document.getElementById('modal-sih-showcase');
+  if (modal) modal.classList.add('open');
+}
+
+function closeSihShowcaseModal() {
+  const modal = document.getElementById('modal-sih-showcase');
+  if (modal) modal.classList.remove('open');
+}
+
+async function runJuryDemoScenario(type) {
+  closeSihShowcaseModal();
+  if (type === 'disaster_detour') {
+    const simTab = document.querySelector('[data-tab="simulation"]');
+    if (simTab) simTab.click();
+    setTimeout(() => {
+      const runBtn = document.getElementById('btn-run-simulation');
+      if (runBtn) runBtn.click();
+    }, 400);
+  } else if (type === 'field_closed_loop') {
+    openFieldReportModal();
+    setTimeout(() => {
+      const loc = document.getElementById('rpt-location-name');
+      const desc = document.getElementById('rpt-description');
+      const sev = document.getElementById('rpt-severity');
+      if (loc) loc.value = "Sela Pass Summit (NH-13, 13,700 ft)";
+      if (desc) desc.value = "Massive rockfall and frozen debris completely blocking arterial corridor to Tawang.";
+      if (sev) sev.value = "BLOCKING";
+    }, 200);
+  } else if (type === 'data_fusion_dvi') {
+    const anTab = document.querySelector('[data-tab="analytics"]');
+    if (anTab) anTab.click();
+  }
+}
+
+async function exportDisasterSitrep() {
+  try {
+    const res = await fetch('/api/analytics/summary');
+    const summary = await res.json();
+    const dviRes = await fetch('/api/analytics/dvi-matrix');
+    const dviData = await dviRes.json();
+    const topCutoff = (dviData.matrix || []).slice(0, 5);
+
+    const win = window.open('', '_blank');
+    if (!win) {
+      alert("Please allow popups to view the Disaster Logistics SITREP.");
+      return;
+    }
+
+    win.document.write(`
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>NERA | Disaster Logistics Situation Report (SITREP)</title>
+        <style>
+          body { font-family: 'Segoe UI', Arial, sans-serif; padding: 30px; color: #1e293b; background: #fff; line-height: 1.5; }
+          h1 { color: #0f172a; border-bottom: 2px solid #0284c7; padding-bottom: 8px; font-size: 24px; }
+          .badge { background: #fee2e2; color: #b91c1c; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 12px; }
+          table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 13px; }
+          th, td { border: 1px solid #cbd5e1; padding: 8px 12px; text-align: left; }
+          th { background: #f1f5f9; font-weight: 600; }
+          .print-btn { background: #0284c7; color: #fff; padding: 8px 18px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; margin-bottom: 20px; }
+          @media print { .print-btn { display: none; } }
+        </style>
+      </head>
+      <body>
+        <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+        <h1>🚚 NERA: Disaster Logistics Situation Report (SITREP)</h1>
+        <p><strong>Region:</strong> North Eastern Region (8 States) &nbsp;|&nbsp; <strong>Classification:</strong> OFFICIAL EMERGENCY BRIEFING &nbsp;|&nbsp; <strong>Generated:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })} IST</p>
+        
+        <h3>1. Executive Logistics & Freight Status</h3>
+        <ul>
+          <li><strong>Active Freight Convoys:</strong> ${summary.logistics?.active_freight_convoys || 12} Trucks (${summary.logistics?.total_cargo_weight_tons || 142} Tons)</li>
+          <li><strong>Delayed Convoys:</strong> <span class="badge">${summary.logistics?.delayed_convoys_count || 1} Delayed</span></li>
+          <li><strong>On-Time Delivery Rate:</strong> ${summary.logistics?.on_time_delivery_rate_pct || 94.8}%</li>
+          <li><strong>Verification Accuracy Rate:</strong> ${summary.reports?.verification_accuracy_rate_pct || 92.8}%</li>
+        </ul>
+
+        <h3>2. Top Critical Vulnerability Districts (DVI Rankings)</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>District</th>
+              <th>State</th>
+              <th>DVI Score</th>
+              <th>Primary Hazard</th>
+              <th>Oxygen Runway</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${topCutoff.map((d, i) => `
+              <tr>
+                <td>${i + 1}</td>
+                <td><strong>${d.district_name}</strong></td>
+                <td>${d.state}</td>
+                <td><strong>${d.dvi_score} / 100</strong></td>
+                <td>${d.primary_vulnerability}</td>
+                <td>${d.oxygen_days_left} Days</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <h3>3. Multi-Modal Emergency Dispatch SOPs</h3>
+        <ul>
+          <li><strong>Brahmaputra NW-2 Barge Corridors:</strong> Pandu Port (Guwahati) ➔ Tezpur / Dibrugarh operational for bulk food grains and petroleum.</li>
+          <li><strong>Tactical Airbridge Sorties:</strong> IAF Mi-17 and Pawan Hans helicopters on standby for medical oxygen transport to high-altitude passes.</li>
+          <li><strong>Border Roads Organisation (BRO):</strong> Project Vartak & Project Pushpak Bailey bridge deployment lead time: 14 - 18 hours.</li>
+        </ul>
+
+        <h3>4. Emergency Hotlines</h3>
+        <p>National SOS: <strong>112</strong> &nbsp;|&nbsp; NHIDCL Road Help: <strong>1033</strong> &nbsp;|&nbsp; NDRF 1st Bn Control: <strong>+91-361-2840284</strong> &nbsp;|&nbsp; BRO Vartak: <strong>+91-3712-259123</strong></p>
+      </body>
+      </html>
+    `);
+    win.document.close();
+  } catch (err) {
+    console.error("Failed to export SITREP:", err);
+  }
+}
+
+

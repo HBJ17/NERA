@@ -178,10 +178,18 @@ def run_standalone_checks():
     assert len(hl_data["bro_projects"]) >= 4
     print(f"[OK] 15. Emergency Broadcast & Hotlines: 8 State EOCs & {len(hl_data['bro_projects'])} BRO Project Bases Verified: OK")
 
-    print("\n>>> ALL 15 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 16. Smart India Hackathon (SIH) Executive Showcase & SITREP
+    html_res = client.get("/")
+    assert "modal-sih-showcase" in html_res.text
+    assert "SIH SHOWCASE" in html_res.text
+    assert "runJuryDemoScenario" in html_res.text or "openSihShowcaseModal" in html_res.text
+    print("[OK] 16. Smart India Hackathon (SIH) Executive Showcase & SITREP Modal: OK")
+
+    print("\n>>> ALL 16 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 
 
 

@@ -79,6 +79,10 @@
 
     <!-- Header Right Actions -->
     <div class="header-actions">
+      <button class="btn-simulation-glow" style="background: linear-gradient(135deg, rgba(255, 184, 0, 0.2), rgba(255, 215, 0, 0.35)); border-color: #ffd700; color: #ffd700; box-shadow: 0 0 14px rgba(255, 215, 0, 0.3);" onclick="openSihShowcaseModal()">
+        🏆 SIH SHOWCASE
+      </button>
+
       <button class="btn-simulation-glow" onclick="document.querySelector('[data-tab=\'simulation\']').click()">
         💥 WHAT-IF SIMULATION
       </button>
@@ -858,6 +862,70 @@
       </div>
       <div class="modal-body" id="alerts-modal-list">
         <!-- Rendered via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SMART INDIA HACKATHON (SIH) JURY SHOWCASE & SITREP -->
+  <div class="modal-backdrop" id="modal-sih-showcase">
+    <div class="modal-container" style="max-width: 680px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #ffd700;">🏆 Smart India Hackathon (SIH) Executive Jury Showcase</div>
+        <button class="modal-close-btn" onclick="closeSihShowcaseModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: rgba(255, 215, 0, 0.08); border: 1px solid rgba(255, 215, 0, 0.3); border-radius: 8px; padding: 12px; font-size: 0.82rem; color: #f8fafc; line-height: 1.4;">
+          <div style="font-weight: 700; color: #ffd700; margin-bottom: 4px;">⚡ 1-Click Interactive Jury Scenarios</div>
+          Select any end-to-end demonstration flow to showcase NERA's real-time AI capabilities, autonomous closed-loop routing, and disaster resilience response.
+        </div>
+
+        <!-- 3 Interactive Demos -->
+        <div style="display: grid; grid-template-columns: 1fr; gap: 10px;">
+          <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 700; color: #00f0ff; font-size: 0.88rem;">1. Sela Pass Landslide & Cryogenic Oxygen Detour</div>
+              <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 2px;">Simulates 13,700 ft pass blockage, isolated district countdown, dynamic detour, and green corridor dispatch.</div>
+            </div>
+            <button class="btn-primary" style="padding: 6px 14px; font-size: 0.75rem; white-space: nowrap;" onclick="runJuryDemoScenario('disaster_detour')">
+              ▶ Launch Demo 1
+            </button>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(0, 255, 136, 0.25); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 700; color: #00ff88; font-size: 0.88rem;">2. Crowdsourced Field Report ➔ Live Graph Severance</div>
+              <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 2px;">Simulates geotagged photo incident ingestion, PWD official verification, and real-time convoy rerouting.</div>
+            </div>
+            <button class="btn-primary" style="padding: 6px 14px; font-size: 0.75rem; white-space: nowrap; background: #00ff88; color: #0b132b;" onclick="runJuryDemoScenario('field_closed_loop')">
+              ▶ Launch Demo 2
+            </button>
+          </div>
+
+          <div style="background: rgba(0,0,0,0.4); border: 1px solid rgba(255, 184, 0, 0.25); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div>
+              <div style="font-weight: 700; color: #ffb800; font-size: 0.88rem;">3. Open-Meteo Weather ➔ DVI Choke Point Analysis</div>
+              <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 2px;">Fetches live meteorological radar, evaluates 84-district DVI scores, and displays SPOF bottlenecks.</div>
+            </div>
+            <button class="btn-primary" style="padding: 6px 14px; font-size: 0.75rem; white-space: nowrap; background: #ffb800; color: #0b132b;" onclick="runJuryDemoScenario('data_fusion_dvi')">
+              ▶ Launch Demo 3
+            </button>
+          </div>
+        </div>
+
+        <!-- Export Disaster SITREP Briefing -->
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 12px; display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
+          <div>
+            <div style="font-weight: 700; color: #fca5a5; font-size: 0.85rem;">📋 Executive Disaster SITREP (Print Briefing)</div>
+            <div style="font-size: 0.72rem; color: #cbd5e1;">Generates a printable regional logistics situation report for SDMA & ministerial briefing rooms.</div>
+          </div>
+          <button class="btn-secondary" style="padding: 6px 14px; font-size: 0.75rem; border-color: #ef4444; color: #fca5a5; white-space: nowrap;" onclick="exportDisasterSitrep()">
+            🖨️ Export SITREP
+          </button>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 4px;">
+          <button type="button" class="btn-secondary" onclick="closeSihShowcaseModal()">Close Showcase</button>
+        </div>
       </div>
     </div>
   </div>
