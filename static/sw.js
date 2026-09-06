@@ -3,7 +3,7 @@
  * Service Worker: Offline-First Caching & Mountain Corridor Resilience Sync
  */
 
-const CACHE_NAME = 'nera-pwa-v3.0';
+const CACHE_NAME = 'nera-pwa-v3.1';
 const STATIC_ASSETS = [
   '/',
   '/static/css/style.css',

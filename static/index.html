@@ -163,6 +163,56 @@
         </div>
       </div>
 
+      <!-- Floating District Isolation Survival Runway Countdown HUD -->
+      <div class="disaster-countdown-hud" id="disaster-countdown-hud" style="display: none;">
+        <div class="countdown-hud-header">
+          <div class="countdown-hud-title-wrap">
+            <span class="pulse-beacon"></span>
+            <div>
+              <div class="countdown-hud-badge">🚨 CRITICAL ISOLATION RUNWAY COUNTDOWN</div>
+              <div class="countdown-hud-epicenter" id="cd-epicenter-title">TAWANG DISTRICT · NH-13 SELA PASS SEVERED</div>
+            </div>
+          </div>
+          <button class="countdown-close-btn" onclick="closeDisasterCountdownHUD()">&times;</button>
+        </div>
+
+        <div class="countdown-clocks-row">
+          <div class="countdown-clock-card oxygen-clock">
+            <div class="clock-label">🧪 LIQUID OXYGEN RUNWAY</div>
+            <div class="clock-timer" id="cd-oxygen-timer">91h 11m 59s</div>
+            <div class="clock-progress-bar">
+              <div class="clock-progress-fill oxygen-fill" id="cd-oxygen-progress" style="width: 38%;"></div>
+            </div>
+            <div class="clock-sub" id="cd-oxygen-sub">Hospital Reserves: Critical (3.8 Days Left)</div>
+          </div>
+
+          <div class="countdown-clock-card ration-clock">
+            <div class="clock-label">🍞 FOOD & CIVIL SUPPLIES</div>
+            <div class="clock-timer" id="cd-ration-timer">479h 59m 59s</div>
+            <div class="clock-progress-bar">
+              <div class="clock-progress-fill ration-fill" id="cd-ration-progress" style="width: 72%;"></div>
+            </div>
+            <div class="clock-sub" id="cd-ration-sub">FCI Buffer Reserves: 20 Days Left</div>
+          </div>
+        </div>
+
+        <div class="countdown-telemetry-strip">
+          <span>👥 Impacted: <b id="cd-pop-count" style="color: #fff;">95,000</b></span>
+          <span>🚚 Delayed: <b id="cd-trucks-count" style="color: #ffb800;">1 Oxygen Tanker</b></span>
+          <span>🚁 Airbridge: <b style="color: #00ff88;">Tezpur ALG Active</b></span>
+          <span>🌉 BRO Bailey Unit: <b style="color: #00f0ff;">En Route</b></span>
+        </div>
+
+        <div class="countdown-hud-actions">
+          <button class="cd-action-btn btn-airbridge" onclick="triggerAirbridgeDispatch()">
+            🚁 Dispatch Tactical Airbridge (Tezpur ➔ Tawang ALG)
+          </button>
+          <button class="cd-action-btn btn-reroute" onclick="triggerEmergencyDetourPreview()">
+            🔄 View AI Emergency Corridor
+          </button>
+        </div>
+      </div>
+
       <!-- Floating Basemap Style Switcher (100% Free - No API Keys) -->
       <div class="map-floating-basemap-switcher">
         <button id="btn-basemap-dark" class="basemap-btn active" onclick="setBasemapStyle('dark')">
@@ -971,13 +1021,13 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
   <!-- App JS Modules -->
-  <script src="/static/js/map.js?v=2.6"></script>
-  <script src="/static/js/simulation.js?v=2.6"></script>
-  <script src="/static/js/routing.js?v=2.6"></script>
-  <script src="/static/js/prediction.js?v=2.6"></script>
-  <script src="/static/js/supplies.js?v=2.6"></script>
-  <script src="/static/js/fieldReport.js?v=2.6"></script>
-  <script src="/static/js/alerts.js?v=2.6"></script>
-  <script src="/static/js/app.js?v=2.6"></script>
+  <script src="/static/js/map.js?v=3.1"></script>
+  <script src="/static/js/simulation.js?v=3.1"></script>
+  <script src="/static/js/routing.js?v=3.1"></script>
+  <script src="/static/js/prediction.js?v=3.1"></script>
+  <script src="/static/js/supplies.js?v=3.1"></script>
+  <script src="/static/js/fieldReport.js?v=3.1"></script>
+  <script src="/static/js/alerts.js?v=3.1"></script>
+  <script src="/static/js/app.js?v=3.1"></script>
 </body>
 </html>

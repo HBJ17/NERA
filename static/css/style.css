@@ -1180,6 +1180,211 @@ input[type="range"] {
   gap: 16px;
 }
 
+/* Floating District Isolation Survival Runway Countdown HUD */
+.disaster-countdown-hud {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 92%;
+  max-width: 680px;
+  background: rgba(11, 19, 43, 0.95);
+  border: 1.5px solid #ff3366;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(255, 51, 102, 0.4), 0 0 24px rgba(0, 0, 0, 0.9);
+  backdrop-filter: blur(14px);
+  z-index: 500;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slideDownIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDownIn {
+  from { transform: translate(-50%, -30px); opacity: 0; }
+  to { transform: translate(-50%, 0); opacity: 1; }
+}
+
+.countdown-hud-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.countdown-hud-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.pulse-beacon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff3366;
+  box-shadow: 0 0 12px #ff3366;
+  animation: beaconPulse 1.2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes beaconPulse {
+  0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #ff3366; }
+  50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 18px #ff3366; }
+  100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 4px #ff3366; }
+}
+
+.countdown-hud-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 800;
+  color: #ff3366;
+  letter-spacing: 0.06em;
+}
+
+.countdown-hud-epicenter {
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #fff;
+}
+
+.countdown-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 1.4rem;
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.countdown-close-btn:hover {
+  color: #fff;
+}
+
+.countdown-clocks-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.countdown-clock-card {
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  border: 1px solid var(--border-subtle);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.oxygen-clock {
+  border-color: rgba(0, 240, 255, 0.35);
+}
+
+.ration-clock {
+  border-color: rgba(255, 184, 0, 0.35);
+}
+
+.clock-label {
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  color: #94a3b8;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.clock-timer {
+  font-family: var(--font-mono);
+  font-size: 1.35rem;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.oxygen-clock .clock-timer {
+  color: #00f0ff;
+  text-shadow: 0 0 10px rgba(0, 240, 255, 0.4);
+}
+
+.ration-clock .clock-timer {
+  color: #ffb800;
+  text-shadow: 0 0 10px rgba(255, 184, 0, 0.4);
+}
+
+.clock-progress-bar {
+  width: 100%;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.clock-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.5s ease;
+}
+
+.oxygen-fill {
+  background: linear-gradient(90deg, #ff3366, #00f0ff);
+}
+
+.ration-fill {
+  background: linear-gradient(90deg, #ffb800, #00ff88);
+}
+
+.clock-sub {
+  font-size: 0.72rem;
+  color: #cbd5e1;
+  margin-top: 2px;
+}
+
+.countdown-telemetry-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.3);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.countdown-hud-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.cd-action-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.btn-airbridge {
+  background: linear-gradient(135deg, #00ff88 0%, #00b359 100%);
+  color: #0b132b;
+}
+.btn-airbridge:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 15px rgba(0, 255, 136, 0.4);
+}
+
+.btn-reroute {
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid var(--accent-cyan);
+  color: #00f0ff;
+}
+.btn-reroute:hover {
+  background: rgba(0, 240, 255, 0.25);
+  box-shadow: 0 0 15px rgba(0, 240, 255, 0.3);
+}
+
 /* Responsive adjustments */
 @media (max-width: 1024px) {
   .app-workspace {

@@ -27,7 +27,7 @@ function renderScenarioOptions(scenarios) {
   if (!container) return;
 
   container.innerHTML = scenarios.map((s, idx) => `
-    <div class="scenario-option ${s.id === selectedScenarioId ? 'selected' : ''}" onclick="selectScenario('${s.id}')">
+    <div class="scenario-option ${s.id === selectedScenarioId ? 'selected' : ''}" data-scenario-id="${s.id}" onclick="selectScenario('${s.id}')">
       <div class="scenario-title">🔥 ${s.title}</div>
       <div class="scenario-desc">${s.description}</div>
       <div style="font-size: 11px; color: #00f0ff; margin-top: 4px; font-family: var(--font-mono);">
@@ -40,10 +40,15 @@ function renderScenarioOptions(scenarios) {
 function selectScenario(scenarioId) {
   selectedScenarioId = scenarioId;
   const options = document.querySelectorAll('.scenario-option');
-  options.forEach(opt => opt.classList.remove('selected'));
-  const clicked = Array.from(options).find(opt => opt.innerHTML.includes(scenarioId));
-  if (clicked) clicked.classList.add('selected');
+  options.forEach(opt => {
+    if (opt.getAttribute('data-scenario-id') === scenarioId) {
+      opt.classList.add('selected');
+    } else {
+      opt.classList.remove('selected');
+    }
+  });
 }
+window.selectScenario = selectScenario;
 
 async function triggerWhatIfSimulation() {
   const runBtn = document.getElementById('btn-run-simulation');
@@ -156,17 +161,19 @@ function applySimulationToAllRoles(res) {
   const hazardGroup = (window.layers && window.layers.hazards) || (typeof layers !== 'undefined' && layers.hazards);
   const activeRouteGroup = (window.layers && window.layers.activeRoute) || (typeof layers !== 'undefined' && layers.activeRoute);
 
-  let epicenterCoords = [27.5020, 92.1030]; // default Sela
+  let epicenterCoords = [27.5020, 92.1030]; // default Sela Pass
   if (res.incident_location) {
     const locLower = res.incident_location.toLowerCase();
     if (locLower.includes('haflong') || locLower.includes('jatinga') || locLower.includes('dima hasao')) {
       epicenterCoords = [25.1764, 93.0189];
-    } else if (locLower.includes('brahmaputra') || locLower.includes('tezpur') || locLower.includes('kaliabhumura')) {
-      epicenterCoords = [26.6000, 92.8500];
+    } else if (locLower.includes('brahmaputra') || locLower.includes('tezpur') || locLower.includes('kaliabhumura') || locLower.includes('saraighat')) {
+      epicenterCoords = [26.1754, 91.6800];
     } else if (locLower.includes('jiribam') || locLower.includes('imphal')) {
       epicenterCoords = [24.8000, 93.1200];
     } else if (locLower.includes('teesta') || locLower.includes('gangtok') || locLower.includes('siliguri')) {
       epicenterCoords = [27.1000, 88.5000];
+    } else if (locLower.includes('sela') || locLower.includes('tawang')) {
+      epicenterCoords = [27.5020, 92.1030];
     }
   }
 
@@ -176,25 +183,28 @@ function applySimulationToAllRoles(res) {
     }
 
     simulationHazardLayer = L.circle(epicenterCoords, {
-      radius: 25000,
+      radius: 22000,
       color: '#ff3366',
       fillColor: '#ff3366',
-      fillOpacity: 0.35,
+      fillOpacity: 0.4,
       weight: 3,
       dashArray: '6, 6'
     }).bindPopup(`
       <div style="font-family: Outfit, sans-serif;">
-        <div style="color: #ff3366; font-weight: 700; font-size: 14px;">🚨 SIMULATED DISASTER ZONE</div>
-        <div>${res.scenario_title}</div>
+        <div style="color: #ff3366; font-weight: 800; font-size: 14px;">🚨 SIMULATED DISASTER ZONE</div>
+        <div><strong>Scenario:</strong> ${res.scenario_title}</div>
         <div><strong>Epicenter:</strong> ${res.incident_location}</div>
-        <div style="color: #ff85a2; margin-top: 4px;">Corridor closed. Detour corridors active.</div>
+        <div style="color: #ff85a2; margin-top: 4px;">Corridor closed. Survival countdown active.</div>
       </div>
     `);
     hazardGroup.addLayer(simulationHazardLayer);
     window.simulationHazardLayer = simulationHazardLayer;
 
     if (window.map) {
-      window.map.setView(epicenterCoords, 8, { animate: true });
+      map.flyTo(epicenterCoords, 9, { duration: 1.2 });
+      setTimeout(() => {
+        if (simulationHazardLayer) simulationHazardLayer.openPopup();
+      }, 1200);
     }
   }
 
@@ -213,6 +223,23 @@ function applySimulationToAllRoles(res) {
   if (typeof onDistrictChange === 'function' && window.currentDistrictId) {
     onDistrictChange(window.currentDistrictId);
   }
+
+  // 6. TRIGGER LIVE TICKING ISOLATION RUNWAY COUNTDOWN HUD!
+  const isoDist = (res.isolated_districts && res.isolated_districts[0]) || null;
+  const distName = isoDist ? (isoDist.district_name || isoDist.name) : "Tawang";
+  const oxDays = isoDist ? (isoDist.days_oxygen_left || 3.8) : 3.8;
+  const foodDays = isoDist ? (isoDist.days_food_left || 20) : 20;
+  const pop = res.total_population_affected || 95000;
+  startLiveIsolationCountdown(distName, oxDays, foodDays, pop);
+
+  // 7. Auto-scroll results into view in sidebar
+  const resBox = document.getElementById('sim-result-box');
+  if (resBox) {
+    resBox.style.display = 'flex';
+    setTimeout(() => resBox.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 300);
+  }
+
+  showToast(`💥 <b>DISASTER SIMULATION ENGAGED!</b><br>${res.scenario_title}. Ticking survival runway countdown active!`, 5000);
 }
 
 function showUserSimulatedHazardAlert(res) {
@@ -413,6 +440,104 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide') {
 }
 window.triggerPointHazard = triggerPointHazard;
 
+// --- LIVE DISTRICT ISOLATION COUNTDOWN CONTROLLER ---
+let countdownInterval = null;
+let oxygenSecondsRemaining = 91 * 3600 + 11 * 60 + 59;
+let rationSecondsRemaining = 479 * 3600 + 59 * 60 + 59;
+
+function startLiveIsolationCountdown(districtName = "Tawang", daysOxygen = 3.8, daysFood = 20, popAffected = 95000) {
+  const hud = document.getElementById('disaster-countdown-hud');
+  if (!hud) return;
+
+  const titleEl = document.getElementById('cd-epicenter-title');
+  if (titleEl) {
+    titleEl.innerText = `${districtName.toUpperCase()} DISTRICT · HIGH-ALTITUDE ROAD CORRIDOR SEVERED`;
+  }
+  const popEl = document.getElementById('cd-pop-count');
+  if (popEl) popEl.innerText = Number(popAffected || 95000).toLocaleString();
+
+  // Initialize countdown seconds
+  oxygenSecondsRemaining = Math.max(3600, Math.round((daysOxygen || 3.8) * 24 * 3600));
+  rationSecondsRemaining = Math.max(7200, Math.round((daysFood || 20) * 24 * 3600));
+
+  if (countdownInterval) clearInterval(countdownInterval);
+  updateCountdownClocksDisplay();
+
+  countdownInterval = setInterval(() => {
+    if (oxygenSecondsRemaining > 0) oxygenSecondsRemaining--;
+    if (rationSecondsRemaining > 0) rationSecondsRemaining--;
+    updateCountdownClocksDisplay();
+  }, 1000);
+
+  hud.style.display = 'flex';
+}
+
+function updateCountdownClocksDisplay() {
+  const oxTimer = document.getElementById('cd-oxygen-timer');
+  const ratTimer = document.getElementById('cd-ration-timer');
+  const oxFill = document.getElementById('cd-oxygen-progress');
+  const oxSub = document.getElementById('cd-oxygen-sub');
+
+  if (oxTimer) {
+    const h = Math.floor(oxygenSecondsRemaining / 3600);
+    const m = Math.floor((oxygenSecondsRemaining % 3600) / 60);
+    const s = oxygenSecondsRemaining % 60;
+    oxTimer.innerText = `${h}h ${m < 10 ? '0' : ''}${m}m ${s < 10 ? '0' : ''}${s}s`;
+    if (oxFill) {
+      const pct = Math.min(100, Math.max(6, (oxygenSecondsRemaining / (5 * 24 * 3600)) * 100));
+      oxFill.style.width = `${pct.toFixed(1)}%`;
+    }
+    if (oxSub) {
+      const days = (oxygenSecondsRemaining / (24 * 3600)).toFixed(1);
+      oxSub.innerText = `Hospital Reserves: Critical (${days} Days Remaining)`;
+    }
+  }
+
+  if (ratTimer) {
+    const h = Math.floor(rationSecondsRemaining / 3600);
+    const m = Math.floor((rationSecondsRemaining % 3600) / 60);
+    const s = rationSecondsRemaining % 60;
+    ratTimer.innerText = `${h}h ${m < 10 ? '0' : ''}${m}m ${s < 10 ? '0' : ''}${s}s`;
+  }
+}
+
+function closeDisasterCountdownHUD() {
+  const hud = document.getElementById('disaster-countdown-hud');
+  if (hud) hud.style.display = 'none';
+  if (countdownInterval) clearInterval(countdownInterval);
+}
+
+function triggerAirbridgeDispatch() {
+  showToast("🚁 <b>IAF & BRO Airbridge Dispatched!</b><br>Mi-17V5 heavy helicopter carrying 2,000L cryogenic oxygen dispatched from Tezpur ALG to Tawang ALG.", 5000);
+  if (window.layers && layers.activeRoute) {
+    const airCorridor = [
+      [26.7090, 92.7960], // Tezpur ALG
+      [27.1500, 92.4500],
+      [27.5861, 91.8594]  // Tawang ALG
+    ];
+    drawRouteOnMap(airCorridor, '#00ff88', false, false);
+    if (window.map) {
+      const bounds = L.latLngBounds(airCorridor);
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }
+}
+
+function triggerEmergencyDetourPreview() {
+  const simTab = document.querySelector('[data-tab="simulation"]');
+  if (simTab) simTab.click();
+  const box = document.getElementById('sim-result-box');
+  if (box) {
+    box.style.display = 'flex';
+    box.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+window.closeDisasterCountdownHUD = closeDisasterCountdownHUD;
+window.startLiveIsolationCountdown = startLiveIsolationCountdown;
+window.triggerAirbridgeDispatch = triggerAirbridgeDispatch;
+window.triggerEmergencyDetourPreview = triggerEmergencyDetourPreview;
+
 async function simulateRouteHazard() {
   const btn = document.getElementById('btn-simulate-route-hazard');
   if (btn) {
@@ -421,23 +546,25 @@ async function simulateRouteHazard() {
   }
 
   try {
-    // If no active route exists or route has less than 2 points, first plan Guwahati -> Shillong corridor
-    if (!window.activeRouteResponse || !window.activeRouteResponse.recommended_route || !window.activeRouteResponse.recommended_route.path_coordinates || window.activeRouteResponse.recommended_route.path_coordinates.length < 2) {
-      showToast(`⚡ <b>Planning Baseline Arterial Corridor...</b><br>Computing Guwahati ➔ Shillong highway...`, 2500);
-      if (typeof planSmartRoute === 'function') {
-        await planSmartRoute('node_guwahati', 'node_shillong');
-      }
+    const srcSel = document.getElementById('route-source-select');
+    const dstSel = document.getElementById('route-dest-select');
+    if (srcSel) srcSel.value = 'node_guwahati';
+    if (dstSel) dstSel.value = 'node_shillong';
+
+    showToast(`⚡ <b>Simulating Disaster on Guwahati-Shillong Corridor...</b><br>Planning arterial route and injecting rockfall at Umiam Gorge...`, 3000);
+    
+    if (typeof planSmartRoute === 'function') {
+      await planSmartRoute('node_guwahati', 'node_shillong');
     }
 
-    // Determine hazard injection coordinate along active corridor
-    let pt = [25.8200, 91.8600]; // Nongpoh mountain highway pass default
-    if (window.activeRouteResponse && window.activeRouteResponse.recommended_route && window.activeRouteResponse.recommended_route.path_coordinates && window.activeRouteResponse.recommended_route.path_coordinates.length > 2) {
-      const coords = window.activeRouteResponse.recommended_route.path_coordinates;
-      pt = coords[Math.floor(coords.length * 0.45)] || pt;
-    }
-
-    showToast(`⚡ <b>Disaster Blockage Injected!</b><br>Landslide at [${pt[0].toFixed(3)}, ${pt[1].toFixed(3)}]. AI computing live dynamic diversion...`, 3500);
+    // Now inject point hazard at Umiam / Nongpoh corridor
+    const pt = [25.8200, 91.8600]; // Nongpoh-Umiam sector
     await triggerPointHazard(pt[0], pt[1], 'landslide');
+
+    // Pan map directly to Nongpoh landslide
+    if (window.map) {
+      map.setView([25.8200, 91.8600], 9, { animate: true });
+    }
   } catch (err) {
     console.error("simulateRouteHazard error:", err);
     showToast(`⚠️ <b>Hazard Simulation Notice:</b> ${err.message}`, 4000);

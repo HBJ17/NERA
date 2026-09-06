@@ -519,14 +519,18 @@ async function runJuryDemoScenario(type) {
     }
     const simTab = document.querySelector('[data-tab="simulation"]');
     if (simTab) simTab.click();
-    setTimeout(() => {
-      if (typeof selectScenarioCard === 'function') {
-        selectScenarioCard('scenario_sela_landslide');
+    showToast("⚡ <b>Launching Demo 1: Sela Pass Disaster...</b><br>Executing landslide simulation and starting survival runway countdown...", 3500);
+
+    setTimeout(async () => {
+      if (typeof selectScenario === 'function') {
+        selectScenario('scenario_sela_landslide');
       }
-      const runBtn = document.getElementById('btn-run-simulation');
-      if (runBtn) runBtn.click();
-    }, 300);
+      if (typeof triggerWhatIfSimulation === 'function') {
+        await triggerWhatIfSimulation();
+      }
+    }, 200);
   } else if (type === 'field_closed_loop') {
+    showToast("⚡ <b>Launching Demo 2: Citizen Hazard Ingestion...</b><br>Pre-populating geotagged obstacle report...", 3000);
     openFieldReportModal();
     setTimeout(() => {
       const loc = document.getElementById('rpt-location-name');
@@ -535,9 +539,10 @@ async function runJuryDemoScenario(type) {
       if (loc) loc.value = "Sela Pass Summit (NH-13, 13,700 ft)";
       if (desc) desc.value = "Massive rockfall and frozen debris completely blocking arterial corridor to Tawang.";
       if (sev) sev.value = "BLOCKING";
-      showToast("💡 <b>Demo 2 Prepared:</b> Geotagged incident loaded. Click 'Submit Incident Report' to trigger live PWD verification and dynamic rerouting.", 4500);
+      showToast("💡 <b>Geotagged Report Loaded:</b> Click 'Submit Incident Report' to trigger live PWD verification and dynamic rerouting.", 4500);
     }, 200);
   } else if (type === 'data_fusion_dvi') {
+    showToast("⚡ <b>Launching Demo 3: DVI Choke Point Analysis...</b>", 3000);
     if (typeof currentRole !== 'undefined' && currentRole !== 'admin') {
       const adminBtn = document.getElementById('role-btn-admin');
       if (adminBtn) await switchRoleAndPersona('admin', adminBtn);
