@@ -16,6 +16,8 @@ window.currentRole = currentRole;
 window.currentDistrictId = currentDistrictId;
 
 document.addEventListener('DOMContentLoaded', () => {
+  registerServiceWorker();
+  updateNetworkStatus();
   initDigitalTwinMap();
   initPredictionControls();
   loadSimulationScenarios();
@@ -33,6 +35,41 @@ document.addEventListener('DOMContentLoaded', () => {
     initRoleState();
   }, 800);
 });
+
+// Register PWA Service Worker for offline GIS support
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/static/sw.js')
+        .then(reg => console.log('[NERA PWA] Service Worker registered with scope:', reg.scope))
+        .catch(err => console.warn('[NERA PWA] Service Worker registration failed:', err));
+    });
+  }
+
+  // Network online/offline listener
+  window.addEventListener('online', updateNetworkStatus);
+  window.addEventListener('offline', updateNetworkStatus);
+}
+
+function updateNetworkStatus() {
+  const isOnline = navigator.onLine;
+  const dot = document.getElementById('network-status-dot');
+  const text = document.getElementById('network-status-text');
+  const indicator = document.getElementById('network-status-indicator');
+
+  if (isOnline) {
+    if (dot) dot.style.background = 'var(--accent-green, #00ff88)';
+    if (text) text.innerText = 'SATELLITE LINK ACTIVE';
+    if (indicator) indicator.title = 'Online Satellite Connection Active';
+    if (typeof syncOfflineReports === 'function') {
+      syncOfflineReports();
+    }
+  } else {
+    if (dot) dot.style.background = 'var(--accent-amber, #ffb800)';
+    if (text) text.innerText = 'OFFLINE MOUNTAIN CACHE';
+    if (indicator) indicator.title = 'Offline Mountain Mode: Cached GIS data and queued reports active';
+  }
+}
 
 function populateGovDistrictDropdown() {
   const distSelect = document.getElementById('active-district-select');

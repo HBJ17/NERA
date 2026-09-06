@@ -19,6 +19,13 @@
 
   <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="/static/css/style.css?v=2.2">
+
+  <!-- Progressive Web App (PWA) Manifest & Meta -->
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="theme-color" content="#00f0ff">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.svg">
 </head>
 <body>
 
@@ -90,8 +97,8 @@
       </select>
 
       <div class="time-telemetry">
-        <span class="live-indicator">
-          <span class="pulsing-dot"></span> SATELLITE LINK ACTIVE
+        <span class="live-indicator" id="network-status-indicator" title="Online Satellite Connection Active">
+          <span class="pulsing-dot" id="network-status-dot"></span> <span id="network-status-text">SATELLITE LINK ACTIVE</span>
         </span>
         <span id="live-time-display">--:--:-- IST</span>
       </div>

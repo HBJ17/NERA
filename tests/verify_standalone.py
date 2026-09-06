@@ -118,8 +118,19 @@ def run_standalone_checks():
     assert report_data["verification_status"] in ("ACTIVE_INCIDENT", "PENDING_VERIFICATION", "PWD_CONFIRMED")
     print(f"[OK] 10. Closed-Loop Incident Ingestion: Submitted report ID {report_data['id']}, edge severed: OK")
 
-    print("\n>>> ALL 10 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 11. Progressive Web App (PWA) Assets
+    m_res = client.get("/static/manifest.json")
+    assert m_res.status_code == 200, "manifest.json missing"
+    assert "NERA" in m_res.json()["name"]
+
+    sw_res = client.get("/static/sw.js")
+    assert sw_res.status_code == 200, "sw.js missing"
+    assert "CACHE_NAME" in sw_res.text
+    print("[OK] 11. Progressive Web App (PWA): manifest.json & Service Worker Cache Verified: OK")
+
+    print("\n>>> ALL 11 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 

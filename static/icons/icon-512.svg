@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b132b"/>
+      <stop offset="50%" stop-color="#1c2541"/>
+      <stop offset="100%" stop-color="#0b132b"/>
+    </linearGradient>
+    <linearGradient id="glow512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="50%" stop-color="#3a86ff"/>
+      <stop offset="100%" stop-color="#00ff88"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg512)"/>
+  <circle cx="256" cy="256" r="190" stroke="url(#glow512)" stroke-width="8" fill="none" opacity="0.3"/>
+  <circle cx="256" cy="256" r="140" stroke="url(#glow512)" stroke-width="4" stroke-dasharray="8, 12" fill="none" opacity="0.6"/>
+  <!-- Mountain contours -->
+  <polygon points="100,360 200,220 280,310 360,180 440,360" fill="none" stroke="url(#glow512)" stroke-width="12" stroke-linejoin="round"/>
+  <!-- Logistics Highway Artery -->
+  <path d="M 160,400 Q 256,290 352,400" fill="none" stroke="#00f0ff" stroke-width="14" stroke-linecap="round"/>
+  <!-- Satellite pulse beacon -->
+  <circle cx="256" cy="160" r="18" fill="#00ff88"/>
+  <circle cx="256" cy="160" r="32" stroke="#00ff88" stroke-width="4" fill="none" opacity="0.5"/>
+  <text x="256" y="460" font-family="'Outfit', sans-serif" font-size="42" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="6">NERA</text>
+</svg>

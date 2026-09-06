@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" width="192" height="192">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0b132b"/>
+      <stop offset="100%" stop-color="#1c2541"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f0ff"/>
+      <stop offset="100%" stop-color="#00ff88"/>
+    </linearGradient>
+  </defs>
+  <rect width="192" height="192" rx="36" fill="url(#bg)"/>
+  <circle cx="96" cy="96" r="70" stroke="url(#glow)" stroke-width="4" fill="none" opacity="0.4"/>
+  <!-- Mountain contours -->
+  <polygon points="40,135 75,85 105,120 135,70 165,135" fill="none" stroke="url(#glow)" stroke-width="5" stroke-linejoin="round"/>
+  <!-- Road artery -->
+  <path d="M 60,155 Q 96,110 132,155" fill="none" stroke="#00f0ff" stroke-width="6" stroke-linecap="round"/>
+  <!-- Telemetry Node Pulse -->
+  <circle cx="96" cy="65" r="8" fill="#00ff88"/>
+  <text x="96" y="175" font-family="'Outfit', sans-serif" font-size="16" font-weight="800" fill="#ffffff" text-anchor="middle" letter-spacing="2">NERA</text>
+</svg>

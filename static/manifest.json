@@ -1,0 +1,25 @@
+{
+  "name": "NERA | North Eastern Logistics & Accessibility Intelligence",
+  "short_name": "NERA Logistics",
+  "description": "AI-Enabled Logistics Intelligence and Resilient Supply Chain Platform for the North Eastern Region of India based on Digital Twin Architecture.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0f1d",
+  "theme_color": "#00f0ff",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/static/icons/icon-512.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["logistics", "disaster-management", "transportation", "government"]
+}
