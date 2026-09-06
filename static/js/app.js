@@ -441,20 +441,54 @@ async function loadAnalyticsDashboard() {
     const tonEl = document.getElementById('kpi-tonnage');
     if (tonEl) tonEl.innerText = `${log.total_cargo_weight_tons || 142} Tons`;
 
-    // Render high risk district rankings
+    // Render high risk district rankings (DVI)
     const rankingsEl = document.getElementById('analytics-district-rankings');
-    if (rankingsEl && dis.high_risk_district_rankings) {
-      rankingsEl.innerHTML = dis.high_risk_district_rankings.map((r, idx) => `
-        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; margin-bottom: 5px;">
-          <div style="font-size: 12px; font-weight: 600; color: #fff;">
-            ${idx + 1}. ${r.district}
-            <div style="font-size: 10px; color: var(--text-muted);">${r.primary_hazard}</div>
-          </div>
-          <span class="badge" style="background: rgba(255,51,102,0.2); color: #ff3366; font-size: 11px; font-weight: 700;">
-            ${r.risk_index}% Risk
-          </span>
-        </div>
-      `).join('');
+    if (rankingsEl) {
+      try {
+        const dviRes = await fetch('/api/analytics/dvi-matrix');
+        const dviData = await dviRes.json();
+        const topDvi = (dviData.matrix || []).slice(0, 5);
+        if (topDvi.length > 0) {
+          rankingsEl.innerHTML = topDvi.map((r, idx) => `
+            <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0,0,0,0.3); padding: 8px 10px; border-radius: 6px; margin-bottom: 5px; border-left: 3px solid ${r.color};">
+              <div style="font-size: 12px; font-weight: 600; color: #fff;">
+                ${idx + 1}. ${r.district_name.split(' (')[0]} (${r.state})
+                <div style="font-size: 10px; color: var(--text-muted);">${r.primary_vulnerability} · O₂ Runway: <strong style="color: ${r.oxygen_days_left < 5 ? '#ff3366' : '#00ff88'}">${r.oxygen_days_left}d</strong></div>
+              </div>
+              <span class="badge" style="background: rgba(${r.color === '#ff3366' ? '255,51,102' : '255,184,0'},0.2); color: ${r.color}; font-size: 11px; font-weight: 700;">
+                DVI ${r.dvi_score}
+              </span>
+            </div>
+          `).join('');
+        }
+      } catch (dviErr) {
+        console.warn("DVI load fallback:", dviErr);
+      }
+    }
+
+    // Render SPOF Bottlenecks List
+    const spofEl = document.getElementById('analytics-spof-list');
+    if (spofEl) {
+      try {
+        const spofRes = await fetch('/api/analytics/spof-bottlenecks');
+        const spofData = await spofRes.json();
+        if (spofData.bottlenecks) {
+          spofEl.innerHTML = spofData.bottlenecks.map(b => `
+            <div style="background: rgba(0,0,0,0.35); border: 1px solid rgba(239,68,68,0.25); border-radius: 6px; padding: 10px;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <div style="font-weight: 700; color: #fff; font-size: 0.82rem;">${b.corridor_name}</div>
+                <span class="badge" style="background: rgba(239,68,68,0.2); color: #fca5a5; font-size: 9px;">${b.severity_tier}</span>
+              </div>
+              <div style="font-size: 0.72rem; color: #cbd5e1; margin-bottom: 4px;">${b.critical_supply_impact}</div>
+              <div style="font-size: 0.68rem; color: var(--accent-cyan);">
+                🚢 <strong>Bypass Alternatives:</strong> ${(b.alternative_options || []).join(' · ')}
+              </div>
+            </div>
+          `).join('');
+        }
+      } catch (spofErr) {
+        console.warn("SPOF load fallback:", spofErr);
+      }
     }
   } catch (e) {
     console.warn("Analytics fetch fallback:", e);

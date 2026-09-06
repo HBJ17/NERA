@@ -128,9 +128,23 @@ def run_standalone_checks():
     assert "CACHE_NAME" in sw_res.text
     print("[OK] 11. Progressive Web App (PWA): manifest.json & Service Worker Cache Verified: OK")
 
-    print("\n>>> ALL 11 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 12. District Vulnerability Index (DVI) & SPOF Bottlenecks
+    dvi_res = client.get("/api/analytics/dvi-matrix")
+    assert dvi_res.status_code == 200
+    dvi_payload = dvi_res.json()
+    assert dvi_payload["total_districts"] >= 32
+    assert len(dvi_payload["matrix"]) >= 32
+    
+    spof_res = client.get("/api/analytics/spof-bottlenecks")
+    assert spof_res.status_code == 200
+    spof_payload = spof_res.json()
+    assert spof_payload["choke_points_count"] >= 4
+    print(f"[OK] 12. District Vulnerability Index & SPOF: {dvi_payload['total_districts']} Districts Ranked, {spof_payload['choke_points_count']} Choke Points: OK")
+
+    print("\n>>> ALL 12 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 
 
