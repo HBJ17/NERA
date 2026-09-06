@@ -21,8 +21,87 @@ function initPredictionControls() {
     }
   });
 
+  const floodRainSlider = document.getElementById('slider-flood-rainfall');
+  const floodDischargeSlider = document.getElementById('slider-flood-discharge');
+  const floodGaugeSlider = document.getElementById('slider-flood-gauge');
+
+  [floodRainSlider, floodDischargeSlider, floodGaugeSlider].forEach(slider => {
+    if (slider) {
+      slider.addEventListener('input', onFloodSliderChange);
+    }
+  });
+
   predictLandslideRisk();
+  predictFloodRisk();
   loadWeatherRadarAndFusion();
+}
+
+function onFloodSliderChange() {
+  const r = document.getElementById('slider-flood-rainfall');
+  const d = document.getElementById('slider-flood-discharge');
+  const g = document.getElementById('slider-flood-gauge');
+
+  if (r) document.getElementById('val-flood-rainfall').innerText = `${r.value} mm`;
+  if (d) document.getElementById('val-flood-discharge').innerText = `${Number(d.value).toLocaleString()} m³/s`;
+  if (g) document.getElementById('val-flood-gauge').innerText = `${g.value} m`;
+
+  predictFloodRisk();
+}
+
+let floodDebounceTimer = null;
+function predictFloodRisk() {
+  clearTimeout(floodDebounceTimer);
+  floodDebounceTimer = setTimeout(async () => {
+    const rain = parseFloat(document.getElementById('slider-flood-rainfall')?.value || 95);
+    const discharge = parseFloat(document.getElementById('slider-flood-discharge')?.value || 38000);
+    const gauge = parseFloat(document.getElementById('slider-flood-gauge')?.value || 8.2);
+
+    try {
+      const res = await fetch('/api/predict/flood', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rainfall_mm: rain,
+          river_discharge_cumec: discharge,
+          current_gauge_m: gauge,
+          danger_mark_m: 8.5,
+          catchment_elevation_m: 55.0
+        })
+      });
+
+      const data = await res.json();
+      renderFloodPrediction(data);
+    } catch (err) {
+      console.error("Flood prediction failed:", err);
+    }
+  }, 120);
+}
+
+function renderFloodPrediction(data) {
+  const riskPct = data.flood_risk_pct;
+  const meter = document.getElementById('flood-risk-meter');
+  const tierBadge = document.getElementById('flood-risk-tier');
+  const protocolText = document.getElementById('flood-action-protocol');
+
+  if (meter) {
+    meter.innerText = `${riskPct}%`;
+    let color = '#00ff88';
+    if (riskPct >= 25) color = '#00f0ff';
+    if (riskPct >= 50) color = '#ffb800';
+    if (riskPct >= 75) color = '#ff3366';
+    meter.style.color = color;
+  }
+
+  if (tierBadge) {
+    tierBadge.innerText = data.risk_level;
+    tierBadge.className = `badge badge-${data.risk_level.toLowerCase()}`;
+    tierBadge.style.background = riskPct > 50 ? 'rgba(255,51,102,0.2)' : 'rgba(0,240,255,0.2)';
+    tierBadge.style.color = riskPct > 50 ? '#ff3366' : '#00f0ff';
+  }
+
+  if (protocolText) {
+    protocolText.innerText = `${data.action_protocol} (Est. Inundation: ${data.inundation_risk_km2} km²)`;
+  }
 }
 
 function onPredictionSliderChange() {
@@ -148,8 +227,9 @@ async function loadWeatherRadarAndFusion() {
     // 1. Fetch Radar Overlays for Leaflet
     const radarRes = await fetch('/api/weather/radar-overlays');
     const overlays = await radarRes.json();
-    if (window.layers && layers.weather) {
-      layers.weather.clearLayers();
+    const weatherGroup = (window.layers && window.layers.weather) || (typeof layers !== 'undefined' && layers.weather);
+    if (weatherGroup && Array.isArray(overlays)) {
+      weatherGroup.clearLayers();
       overlays.forEach(ov => {
         const circle = L.circle(ov.coordinates, {
           radius: ov.radius_meters,
@@ -164,7 +244,7 @@ async function loadWeatherRadarAndFusion() {
             <div>Precipitation: <strong>${ov.rainfall_mm_hr} mm/hr</strong> (${ov.dbz} dBZ)</div>
           </div>
         `);
-        layers.weather.addLayer(circle);
+        weatherGroup.addLayer(circle);
       });
     }
 

@@ -95,6 +95,201 @@ class DisasterSimulationEngine:
         smart_route_engine.build_graph()
         return {"status": "reset", "message": "Digital Twin simulation reset to normal baseline."}
 
+    def trigger_hazard_at_point(self, lat: float, lng: float, disaster_type: str = "landslide", severity: str = "HIGH") -> Dict[str, Any]:
+        """
+        Dynamically simulates a disaster blockage at the closest highway corridor to (lat, lng).
+        Mutates fleet_manager edges_state, rebuilds graph, and identifies affected vehicles and reroutes.
+        """
+        from app.services.fleet_tracker import fleet_manager
+
+        best_edge = None
+        best_dist = float("inf")
+        nodes_dict = {n["id"]: n for n in NER_DISTRICT_NODES}
+
+        for edge in fleet_manager.edges_state:
+            poly = edge.get("coordinates_polyline", [])
+            if not poly:
+                u_coord = nodes_dict.get(edge["source"], {}).get("coordinates", [26.0, 92.0])
+                v_coord = nodes_dict.get(edge["target"], {}).get("coordinates", [26.0, 92.0])
+                poly = [u_coord, v_coord]
+
+            for pt in poly:
+                d = ((pt[0] - lat)**2 + (pt[1] - lng)**2)**0.5
+                if d < best_dist:
+                    best_dist = d
+                    best_edge = edge
+
+        if not best_edge:
+            best_edge = fleet_manager.edges_state[0]
+
+        target_edge_id = best_edge["id"]
+        highway_name = best_edge.get("name", best_edge["id"])
+        highway_code = best_edge.get("highway_code", "Corridor")
+
+        disaster_title = "Massive Rockfall & Hill Cutting Failure" if disaster_type == "landslide" else "River Flood Inundation & Embankment Breach"
+        for e in fleet_manager.edges_state:
+            if e["id"] == target_edge_id:
+                e["status"] = "blocked"
+                e["closure_reason"] = f"CRITICAL: {disaster_title} ({severity} Severity)"
+                e["landslide_risk"] = 98.0 if disaster_type == "landslide" else e.get("landslide_risk", 70.0)
+                e["flood_risk"] = 95.0 if disaster_type == "flood" else e.get("flood_risk", 50.0)
+
+        # Rebuild graph with new blockage
+        smart_route_engine.build_graph()
+
+        # Check affected vehicles
+        affected_vehicles = []
+        for v in fleet_manager.get_fleet():
+            if v.get("assigned_route_id") == target_edge_id:
+                v["status"] = "delayed"
+                v["delay_minutes"] = v.get("delay_minutes", 0) + 90
+                affected_vehicles.append({
+                    "vehicle_id": v["id"],
+                    "vehicle_number": v["vehicle_number"],
+                    "driver_name": v.get("driver_name", "Driver"),
+                    "cargo_type": v.get("cargo_type", "Supplies"),
+                    "category": v.get("category", "logistics"),
+                    "status": "REROUTING"
+                })
+
+        # Store active simulation
+        self.active_simulation = {
+            "type": "point_hazard",
+            "disaster_type": disaster_type,
+            "severity": severity,
+            "coordinates": [lat, lng],
+            "target_edge_id": target_edge_id,
+            "highway_code": highway_code,
+            "highway_name": highway_name,
+            "source_node": best_edge["source"],
+            "target_node": best_edge["target"],
+            "description": f"{disaster_title} on {highway_code} ({highway_name}) near coordinates [{lat:.4f}, {lng:.4f}]. Real-time AI bypass active.",
+            "timestamp": datetime.now().strftime("%I:%M %p")
+        }
+
+        # Add emergency alert
+        fleet_manager.alerts.insert(0, {
+            "id": f"alert_sim_{uuid.uuid4().hex[:4]}",
+            "timestamp": "Just now",
+            "severity": "CRITICAL_DANGER",
+            "category": disaster_type.upper(),
+            "location_tag": f"{highway_code} ({highway_name})",
+            "message_en": f"RED ALERT: {disaster_title} at coordinates [{lat:.3f}, {lng:.3f}]. Highway impassable. Autonomous AI safe bypass engaged for all vehicles.",
+            "message_as": f"ৰঙা সতৰ্কবাৰ্তা: {highway_code} পথত দুৰ্যোগৰ বাবে যাতায়ত বন্ধ।",
+            "message_hi": f"रेड अलर्ट: {highway_code} पर आपदा के कारण मार्ग अवरुद्ध। वैकल्पिक सुरक्षित मार्ग सक्रिय।",
+            "message_bn": f"লাল সতর্কতা: {highway_code} পথে বিপর্যয়ের জন্য যান চলাচল বন্ধ।",
+            "affected_routes": [highway_code],
+            "affected_districts": [best_edge["source"], best_edge["target"]]
+        })
+
+        # Generate dynamic alternate bypass for this severed corridor
+        ai_reroutes = []
+        try:
+            reroute_res = smart_route_engine.optimize_route(RouteRequest(
+                source_id=best_edge["source"],
+                destination_id=best_edge["target"],
+                avoid_high_risk=True
+            ))
+            if reroute_res.recommended_route:
+                ai_reroutes.append(reroute_res.recommended_route)
+        except Exception:
+            pass
+
+        # Connectivity Matrix & Isolated Districts Analysis
+        hub_node = "node_guwahati"
+        connectivity_matrix = {}
+        isolated_districts = []
+        total_pop_affected = 0
+        G_sim = smart_route_engine.G_distance.copy()
+        for u, v, data in list(G_sim.edges(data=True)):
+            if data.get("edge_id") == target_edge_id:
+                G_sim.remove_edge(u, v)
+
+        for n_id, n_data in nodes_dict.items():
+            if n_id == hub_node:
+                connectivity_matrix[n_id] = "connected"
+                continue
+            try:
+                has_p = nx.has_path(G_sim, source=hub_node, target=n_id)
+                if has_p:
+                    orig_len = nx.shortest_path_length(smart_route_engine.G_distance, source=hub_node, target=n_id, weight="weight")
+                    sim_len = nx.shortest_path_length(G_sim, source=hub_node, target=n_id, weight="weight")
+                    status = "limited" if sim_len > orig_len * 1.4 else "connected"
+                else:
+                    status = "disconnected"
+            except Exception:
+                status = "disconnected"
+
+            connectivity_matrix[n_id] = status
+            if status in ("disconnected", "limited"):
+                tier = "FULLY_CUT_OFF" if status == "disconnected" else "RESTRICTED_ACCESS"
+                pop = n_data["population"]
+                total_pop_affected += pop
+                isolated_districts.append({
+                    "district_id": n_id,
+                    "district_name": n_data["name"],
+                    "state": n_data["state"],
+                    "population_impacted": pop,
+                    "days_oxygen_left": n_data["stock_oxygen_days"],
+                    "days_food_left": n_data["stock_rations_days"],
+                    "isolation_tier": tier
+                })
+
+        supplies_at_risk = {
+            "liquid_oxygen_liters": 16000 if len(affected_vehicles) > 0 else 0,
+            "vaccines_and_insulin_tons": 3.5 if len(affected_vehicles) > 0 else 0.0,
+            "fci_food_rations_tons": 18.0 if len(affected_vehicles) > 0 else 0.0,
+            "petroleum_fuel_kl": 24.0 if len(affected_vehicles) > 0 else 0.0,
+            "high_priority_shipments_count": len(affected_vehicles)
+        }
+
+        # Structure delayed_vehicles to match what the UI expects
+        formatted_delayed_vehicles = []
+        for v in affected_vehicles:
+            formatted_delayed_vehicles.append({
+                "vehicle_id": v["vehicle_id"],
+                "vehicle_number": v["vehicle_number"],
+                "cargo_type": v.get("cargo_type", "Emergency Supplies"),
+                "cargo_priority": "CRITICAL",
+                "destination": v.get("target_node", best_edge["target"]),
+                "current_status": "REROUTING_DISPATCHED",
+                "estimated_delay_hrs": 3.5,
+                "suggested_reroute_id": "Diverted along AI Resilient Safe Corridor"
+            })
+
+        emergency_protocols = [
+            f"🚨 POINT HAZARD INJECTION ACTIVE: Simulated {disaster_type.capitalize()} on {highway_code}.",
+            f"1. AI Safe Corridor Bypass engaged between {best_edge['source']} and {best_edge['target']}.",
+            f"2. {len(affected_vehicles)} vehicles rerouted around severed sector.",
+            f"3. {len(isolated_districts)} district hubs monitored for critical survival supply runway.",
+            "4. Real-time digital twin state synchronized across all stakeholder consoles."
+        ]
+
+        return {
+            "status": "hazard_triggered",
+            "scenario_title": f"Simulated {disaster_type.capitalize()} Blockade at {highway_code}",
+            "incident_location": f"{highway_code} (Lat {lat:.4f}, Lng {lng:.4f})",
+            "target_edge_id": target_edge_id,
+            "nearest_edge_id": target_edge_id,
+            "highway_code": highway_code,
+            "highway_name": highway_name,
+            "severed_highway": highway_code,
+            "coordinates": [lat, lng],
+            "disaster_type": disaster_type,
+            "severity": severity,
+            "message": f"Blockade established on {highway_code} ({highway_name}). Dynamic AI Reroute engaged.",
+            "affected_vehicles": affected_vehicles,
+            "delayed_vehicles": formatted_delayed_vehicles,
+            "ai_generated_reroutes": ai_reroutes,
+            "isolated_districts": isolated_districts,
+            "total_population_affected": total_pop_affected,
+            "critical_supplies_at_risk": supplies_at_risk,
+            "emergency_action_recommendations": emergency_protocols,
+            "connectivity_matrix": connectivity_matrix,
+            "source_node": best_edge["source"],
+            "target_node": best_edge["target"]
+        }
+
     def run_simulation(self, req: DisasterSimulationRequest) -> DisasterSimulationResponse:
         scenario_id = req.scenario_id
         preset = self.PRESET_SCENARIOS.get(scenario_id, None)

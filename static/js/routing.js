@@ -3,13 +3,15 @@
  * Module 2 & 9: OpenStreetMap Smart Resilient Routing & Navigation Controller
  * 
  * Features:
- * - Search places & geocoding across North Eastern region
- * - Dual corridor route calculation: Shortest Highway vs AI Safe Bypass
- * - Dynamic Rerouting HUD with turn-by-turn guidance and live alerts
+ * - Search places & OpenStreetMap Nominatim geocoding across North Eastern region
+ * - Free Real Road Driving Navigation via OpenStreetMap OSRM API (Zero API key needed)
+ * - Dual corridor calculation: Shortest Highway vs AI Safe-Corridor Bypass
+ * - Dynamic Rerouting HUD with turn-by-turn guidance, maneuver icons, and live hazard alerts
  */
 let activeRouteResponse = null;
 let currentSearchDestination = null;
 let userCurrentLocation = [26.1445, 91.7362]; // Default: Guwahati
+let routingMode = 'hybrid'; // 'hybrid' (OSRM + AI Resilient) or 'graph_only'
 
 function populateRouteDropdowns() {
   if (!window.twinData || !window.twinData.districts) return;
@@ -19,16 +21,42 @@ function populateRouteDropdowns() {
 
   if (!srcSelect || !dstSelect) return;
 
-  const optionsHtml = window.twinData.districts.map(d => `
-    <option value="${d.id}">${d.name} (${d.state})</option>
-  `).join('');
+  // Group districts by State
+  const stateMap = {};
+  window.twinData.districts.forEach(d => {
+    const st = d.state || 'Gateway Corridor';
+    if (!stateMap[st]) stateMap[st] = [];
+    stateMap[st].push(d);
+  });
+
+  // Sort states alphabetically, prioritizing Assam and West Bengal (Gateway)
+  const sortedStates = Object.keys(stateMap).sort((a, b) => {
+    if (a.includes('Assam')) return -1;
+    if (b.includes('Assam')) return 1;
+    if (a.includes('West Bengal')) return -1;
+    if (b.includes('West Bengal')) return 1;
+    return a.localeCompare(b);
+  });
+
+  let optionsHtml = '';
+  sortedStates.forEach(st => {
+    optionsHtml += `<optgroup label="📍 ${st} (${stateMap[st].length} Hubs)">`;
+    stateMap[st].sort((a, b) => a.name.localeCompare(b.name)).forEach(d => {
+      optionsHtml += `<option value="${d.id}">${d.name} (${d.tier || 'Hub'})</option>`;
+    });
+    optionsHtml += `</optgroup>`;
+  });
+
+  // Preserve selections
+  const srcVal = srcSelect.value;
+  const dstVal = dstSelect.value;
 
   srcSelect.innerHTML = optionsHtml;
   dstSelect.innerHTML = optionsHtml;
 
   // Defaults: Guwahati -> Tawang
-  srcSelect.value = "node_guwahati";
-  dstSelect.value = "node_tawang";
+  srcSelect.value = srcVal || "node_guwahati";
+  dstSelect.value = dstVal || "node_tawang";
 }
 
 // --- Autocomplete Destination Search ---
@@ -70,10 +98,10 @@ function renderSearchSuggestions(places) {
   }
 
   dropdown.innerHTML = places.map(p => `
-    <div class="user-suggestion-item" onclick="selectSearchDestination('${p.name}', '${p.district_id}', [${p.coordinates[0]}, ${p.coordinates[1]}])">
+    <div class="user-suggestion-item" onclick="selectSearchDestination('${p.name.replace(/'/g, "\\'")}', '${p.district_id || ''}', [${p.coordinates[0]}, ${p.coordinates[1]}])">
       <div>
         <div style="font-weight: 600; color: #fff; font-size: 0.85rem;">📍 ${p.name}</div>
-        <div style="font-size: 0.72rem; color: var(--text-muted);">${p.state} · ${p.type || 'District Node'}</div>
+        <div style="font-size: 0.72rem; color: var(--text-muted);">${p.state || 'NER Location'} · ${p.type || 'District Hub'}</div>
       </div>
       <button class="user-nav-btn-go" style="padding: 4px 10px; font-size: 0.72rem;">Select</button>
     </div>
@@ -90,11 +118,23 @@ function selectSearchDestination(name, districtId, coords) {
   if (dropdown) dropdown.style.display = 'none';
 
   currentSearchDestination = { name, districtId, coords };
+  window.customDestCoords = coords;
 
   // Sync with smart routing tab dropdown
   const dstSelect = document.getElementById('route-dest-select');
-  if (dstSelect && districtId) {
-    dstSelect.value = districtId;
+  if (dstSelect) {
+    if (districtId && Array.from(dstSelect.options).some(o => o.value === districtId)) {
+      dstSelect.value = districtId;
+    } else {
+      let opt = Array.from(dstSelect.options).find(o => o.value === 'custom_coords');
+      if (!opt) {
+        opt = document.createElement('option');
+        opt.value = 'custom_coords';
+        dstSelect.prepend(opt);
+      }
+      opt.text = `🎯 ${name}`;
+      dstSelect.value = 'custom_coords';
+    }
   }
 
   // Trigger quick route preview
@@ -102,7 +142,18 @@ function selectSearchDestination(name, districtId, coords) {
 }
 
 async function onQuickNavigateClick() {
-  const dstNode = currentSearchDestination ? currentSearchDestination.districtId : (document.getElementById('route-dest-select') ? document.getElementById('route-dest-select').value : 'node_tawang');
+  let dstNode = 'node_tawang';
+  if (currentSearchDestination) {
+    if (currentSearchDestination.districtId) {
+      dstNode = currentSearchDestination.districtId;
+    } else if (currentSearchDestination.coords) {
+      dstNode = 'custom_coords';
+    }
+  } else {
+    const dstSelect = document.getElementById('route-dest-select');
+    if (dstSelect) dstNode = dstSelect.value;
+  }
+
   const srcNode = document.getElementById('route-source-select') ? document.getElementById('route-source-select').value : 'node_guwahati';
 
   await planSmartRoute(srcNode, dstNode);
@@ -110,9 +161,55 @@ async function onQuickNavigateClick() {
 }
 
 async function planSmartRoute(optSrc, optDst) {
-  const src = optSrc || document.getElementById('route-source-select').value;
-  const dst = optDst || document.getElementById('route-dest-select').value;
+  const srcSelect = document.getElementById('route-source-select');
+  const dstSelect = document.getElementById('route-dest-select');
+
+  let src = optSrc || (srcSelect ? srcSelect.value : 'node_guwahati');
+  let dst = optDst || (dstSelect ? dstSelect.value : 'node_tawang');
   const avoidHazards = document.getElementById('chk-avoid-hazards') ? document.getElementById('chk-avoid-hazards').checked : true;
+
+  if (src === 'custom_coords' && window.customSourceCoords) {
+    if (window.twinData && window.twinData.districts) {
+      const [cLat, cLng] = window.customSourceCoords;
+      let closest = window.twinData.districts[0];
+      let minD = Infinity;
+      window.twinData.districts.forEach(d => {
+        const dist = Math.hypot(d.coordinates[0] - cLat, d.coordinates[1] - cLng);
+        if (dist < minD) {
+          minD = dist;
+          closest = d;
+        }
+      });
+      src = closest.id;
+    } else {
+      src = 'node_guwahati';
+    }
+  }
+
+  if (dst === 'custom_coords' && window.customDestCoords) {
+    // Map to closest district node
+    if (window.twinData && window.twinData.districts) {
+      const [cLat, cLng] = window.customDestCoords;
+      let closest = window.twinData.districts[0];
+      let minD = Infinity;
+      window.twinData.districts.forEach(d => {
+        const dist = Math.hypot(d.coordinates[0] - cLat, d.coordinates[1] - cLng);
+        if (dist < minD) {
+          minD = dist;
+          closest = d;
+        }
+      });
+      dst = closest.id;
+    }
+  }
+
+  // Update UI dropdowns to match selected route
+  if (srcSelect && Array.from(srcSelect.options).some(o => o.value === src)) {
+    srcSelect.value = src;
+  }
+  if (dstSelect && Array.from(dstSelect.options).some(o => o.value === dst)) {
+    dstSelect.value = dst;
+  }
 
   if (src === dst) {
     alert("Please select different origin and destination nodes.");
@@ -121,7 +218,7 @@ async function planSmartRoute(optSrc, optDst) {
 
   const planBtn = document.getElementById('btn-calculate-route');
   if (planBtn) {
-    planBtn.innerHTML = '⚡ Computing Multi-Factor Resilient Route...';
+    planBtn.innerHTML = '⚡ Computing Real Road & AI Resilient Corridor...';
     planBtn.disabled = true;
   }
 
@@ -137,6 +234,7 @@ async function planSmartRoute(optSrc, optDst) {
     });
 
     activeRouteResponse = await res.json();
+    window.activeRouteResponse = activeRouteResponse;
     renderRouteResults(activeRouteResponse);
   } catch (err) {
     console.error("Routing failed:", err);
@@ -191,31 +289,124 @@ function renderRouteResults(data) {
   if (advEl) advEl.innerText = `🌦️ ${rec.weather_advisory}`;
 
   const redEl = document.getElementById('route-risk-reduction');
-  if (redEl) redEl.innerText = `-${data.risk_reduction_pct}% Hazard Risk`;
+  if (redEl) {
+    if (data.red_zones_avoided > 0) {
+      redEl.innerText = `🛡️ ${data.red_zones_avoided} Red Zones Bypassed`;
+      redEl.style.color = '#00ff88';
+    } else if (rec.red_zone_count === 0) {
+      redEl.innerText = `🟢 0 Red Hazard Zones`;
+      redEl.style.color = '#00ff88';
+    } else {
+      redEl.innerText = `-${data.risk_reduction_pct}% Hazard Risk`;
+    }
+  }
 
   const deltaEl = document.getElementById('route-time-delta');
   if (deltaEl) {
-    deltaEl.innerText = data.delay_delta_minutes !== 0 ? 
-      `${data.delay_delta_minutes > 0 ? '+' : ''}${data.delay_delta_minutes} min vs Highway` : 'Direct Route';
+    let deltaText = data.delay_delta_minutes !== 0 ? 
+      `${data.delay_delta_minutes > 0 ? '+' : ''}${data.delay_delta_minutes} min vs Highway` : 'Direct Fast Highway Corridor';
+    if (rec.red_zone_count === 0) {
+      deltaText += ' · 🟢 100% Safe Corridor (Zero Red Zones)';
+    }
+    deltaEl.innerText = deltaText;
   }
 
-  // Turn-by-turn steps
+  // Populate AI Scientific Risk Breakdown Card
+  const aiData = rec.ai_risk_breakdown || data.ai_risk_breakdown;
+  const aiCard = document.getElementById('route-ai-risk-card');
+  if (aiCard && aiData) {
+    aiCard.style.display = 'block';
+    
+    const badge = document.getElementById('route-ai-tier-badge');
+    if (badge) {
+      const isZeroRed = rec.red_zone_count === 0;
+      badge.innerText = isZeroRed ? `🟢 ZERO RED ZONES (${rec.aggregate_risk_score}%)` : `${aiData.risk_level || 'EVALUATED'} (${rec.aggregate_risk_score}%)`;
+      let bg = isZeroRed ? 'rgba(0,255,136,0.25)' : 'rgba(0,255,136,0.2)';
+      let col = '#00ff88';
+      if (rec.aggregate_risk_score > 60) {
+        bg = 'rgba(255,51,102,0.25)';
+        col = '#ff3366';
+      } else if (rec.aggregate_risk_score > 35) {
+        bg = 'rgba(255,184,0,0.25)';
+        col = '#ffb800';
+      }
+      badge.style.background = bg;
+      badge.style.color = col;
+    }
+
+    const formulaEl = document.getElementById('route-ai-formula-text');
+    if (formulaEl && aiData.model_formula) {
+      formulaEl.innerText = aiData.model_formula;
+    }
+
+    const barsEl = document.getElementById('route-ai-factor-bars');
+    if (barsEl && aiData.factors) {
+      barsEl.innerHTML = aiData.factors.map(f => {
+        let barColor = '#00f0ff';
+        if (f.contribution_pct > 35) barColor = '#ff3366';
+        else if (f.contribution_pct > 25) barColor = '#ffb800';
+        return `
+          <div>
+            <div style="display: flex; justify-content: space-between; font-size: 0.72rem; margin-bottom: 2px;">
+              <span style="color: #cbd5e1; font-weight: 600;">${f.name}</span>
+              <span style="color: ${barColor}; font-family: var(--font-mono); font-weight: 700;">${f.contribution_pct}%</span>
+            </div>
+            <div style="background: rgba(255,255,255,0.08); height: 5px; border-radius: 99px; overflow: hidden;">
+              <div style="background: ${barColor}; width: ${Math.min(100, f.contribution_pct * 1.8)}%; height: 100%; border-radius: 99px;"></div>
+            </div>
+            <div style="font-size: 0.68rem; color: #64748b; margin-top: 1px;">${f.description}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const statsEl = document.getElementById('route-ai-env-stats');
+    if (statsEl && aiData.environmental_telemetry) {
+      const env = aiData.environmental_telemetry;
+      statsEl.innerHTML = `
+        <div>🌧️ Avg Rain: <strong style="color: #fff;">${env.avg_rainfall_mm} mm</strong></div>
+        <div>📐 Max Slope: <strong style="color: #fff;">${env.max_slope_deg || env.max_slope_degrees || 12}°</strong></div>
+        <div>💧 Soil Sat: <strong style="color: #fff;">${env.soil_moisture_pct}%</strong></div>
+        <div>🌋 Fault Line: <strong style="color: #ff3366;">Zone V (Himalayan)</strong></div>
+      `;
+    }
+
+    const protoEl = document.getElementById('route-ai-protocol-text');
+    if (protoEl && aiData.action_protocol) {
+      protoEl.innerHTML = `🛡️ <strong>Safety Directive:</strong> ${aiData.action_protocol}`;
+    }
+  }
+
+  // Turn-by-turn steps with visual icons
   const turnList = document.getElementById('route-turn-steps');
   if (turnList) {
-    turnList.innerHTML = rec.segments.map((seg, idx) => `
-      <div class="turn-step ${seg.status === 'warning' ? 'has-warning' : ''}">
-        <div style="font-weight: 700; color: #00f0ff; font-family: var(--font-mono);">${idx + 1}.</div>
-        <div style="flex: 1;">
-          <div style="font-weight: 600; color: #fff;">${seg.name}</div>
-          <div style="font-size: 11px; color: #94a3b8; margin: 2px 0;">${seg.instructions}</div>
-          <div style="font-size: 10px; color: var(--text-muted); display: flex; gap: 10px; font-family: var(--font-mono);">
-            <span>Dist: ${seg.distance_km} km</span>
-            <span>Est: ${seg.travel_time_min} min</span>
-            <span style="color: ${seg.landslide_risk > 50 ? '#ff3366' : '#00ff88'}">LS Risk: ${seg.landslide_risk}%</span>
+    turnList.innerHTML = rec.segments.map((seg, idx) => {
+      let icon = '⬆️';
+      if (seg.instructions.toLowerCase().includes('right')) icon = '↗️';
+      if (seg.instructions.toLowerCase().includes('left')) icon = '↖️';
+      if (seg.status === 'warning') icon = '⚠️';
+      if (seg.status === 'blocked') icon = '🚫';
+
+      const isHighRisk = seg.landslide_risk > 50 || seg.flood_risk > 50 || seg.status !== 'open';
+
+      return `
+        <div class="turn-step ${isHighRisk ? 'has-warning' : ''}">
+          <div style="font-size: 1.1rem; margin-right: 4px;">${icon}</div>
+          <div style="font-weight: 700; color: #00f0ff; font-family: var(--font-mono);">${idx + 1}.</div>
+          <div style="flex: 1;">
+            <div style="font-weight: 600; color: #fff;">${seg.name}</div>
+            <div style="font-size: 11px; color: #94a3b8; margin: 2px 0;">${seg.instructions}</div>
+            <div style="font-size: 10px; color: var(--text-muted); display: flex; gap: 10px; font-family: var(--font-mono);">
+              <span>Dist: ${seg.distance_km} km</span>
+              <span>Est: ${seg.travel_time_min} min</span>
+              <span style="color: ${isHighRisk ? '#ff3366' : '#00ff88'}; font-weight: 600;">
+                ${isHighRisk ? '⚠️ Red Hazard: ' : '🟢 Safe: '}${seg.landslide_risk}%
+              </span>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   }
 }
 
@@ -225,7 +416,10 @@ function startActiveNavigation() {
   const hud = document.getElementById('user-active-nav-hud');
   if (!hud) return;
 
-  document.getElementById('hud-nav-dest-name').innerText = `${activeRouteResponse.source_name.split(' (')[0]} ➔ ${activeRouteResponse.destination_name.split(' (')[0]}`;
+  const srcLabel = activeRouteResponse.source_name.split(' (')[0];
+  const dstLabel = activeRouteResponse.destination_name.split(' (')[0];
+
+  document.getElementById('hud-nav-dest-name').innerText = `${srcLabel} ➔ ${dstLabel}`;
   document.getElementById('hud-nav-stats').innerText = `${rec.total_distance_km} km · ${rec.total_travel_time_hours} hrs · Risk ${rec.aggregate_risk_score}%`;
 
   if (rec.segments && rec.segments.length > 0) {
@@ -237,7 +431,7 @@ function startActiveNavigation() {
   if (warnBox) {
     warnBox.style.display = hasCaution ? 'block' : 'none';
     if (hasCaution) {
-      document.getElementById('hud-hazard-text').innerText = "AI Safe Bypass Engaged: Avoiding active high-risk sectors ahead.";
+      document.getElementById('hud-hazard-text').innerText = "AI Safe Bypass Active: Diverting away from active hill slide sectors.";
     }
   }
 
@@ -248,3 +442,4 @@ function closeNavigationHUD() {
   const hud = document.getElementById('user-active-nav-hud');
   if (hud) hud.style.display = 'none';
 }
+

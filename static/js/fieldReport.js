@@ -64,11 +64,20 @@ function openFieldReportModal() {
     if (emergencyCheck) emergencyCheck.checked = false;
   }
 
+  // Populate highway dropdown dynamically from twin data
+  const hwySelect = document.getElementById('rpt-highway');
+  if (hwySelect && window.twinData && window.twinData.highways) {
+    hwySelect.innerHTML = window.twinData.highways.map(h => `
+      <option value="${h.highway_code.split(' (')[0]}">${h.highway_code} (${h.distance_km} km)</option>
+    `).join('');
+  }
+
   // Pre-fill live GPS
   acquireReportGPS();
 
   modal.classList.add('open');
 }
+
 
 function closeFieldReportModal() {
   const modal = document.getElementById('modal-field-report');
@@ -229,6 +238,23 @@ async function verifyReportAction(reportId, action) {
   }
 }
 
+let currentReportFilter = 'all';
+
+function setReportsFilter(filterKey, btn) {
+  currentReportFilter = filterKey;
+  document.querySelectorAll('.report-filter-btn').forEach(b => {
+    b.classList.remove('active');
+    b.style.background = 'transparent';
+    b.style.color = 'var(--text-muted)';
+  });
+  if (btn) {
+    btn.classList.add('active');
+    btn.style.background = 'rgba(255,255,255,0.12)';
+    btn.style.color = '#fff';
+  }
+  loadFieldReportsList();
+}
+
 async function loadFieldReportsList() {
   const container = document.getElementById('field-reports-timeline');
   if (!container) return;
@@ -246,9 +272,30 @@ async function loadFieldReportsList() {
       const d = window.twinData.districts.find(x => x.id === districtId);
       const dName = d ? d.name.split(' (')[0].toLowerCase() : '';
       if (dName) {
-        displayReports = reports.filter(r => r.location_name.toLowerCase().includes(dName) || r.nearest_highway.toLowerCase().includes(dName));
-        if (displayReports.length === 0) displayReports = reports; // fallback
+        const districtMatches = reports.filter(r => 
+          (r.location_name && r.location_name.toLowerCase().includes(dName)) || 
+          (r.nearest_highway && r.nearest_highway.toLowerCase().includes(dName))
+        );
+        if (districtMatches.length > 0) {
+          displayReports = districtMatches;
+        }
       }
+    }
+
+    // Apply Quick Filter (All / Pending / Verified)
+    if (currentReportFilter === 'pending') {
+      displayReports = displayReports.filter(r => r.verification_status === 'PENDING_VERIFICATION');
+    } else if (currentReportFilter === 'verified') {
+      displayReports = displayReports.filter(r => r.verification_status !== 'PENDING_VERIFICATION');
+    }
+
+    if (!displayReports || displayReports.length === 0) {
+      container.innerHTML = `
+        <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.8rem; background: rgba(0,0,0,0.2); border-radius: var(--radius-md);">
+          ${currentReportFilter === 'pending' ? '✨ No pending reports awaiting approval in this queue.' : 'No active incident reports found.'}
+        </div>
+      `;
+      return;
     }
 
     container.innerHTML = displayReports.map(r => {
@@ -256,21 +303,22 @@ async function loadFieldReportsList() {
       const isVerified = r.verification_status === 'ACTIVE_INCIDENT' || r.verification_status === 'PWD_CONFIRMED' || r.verification_status === 'VERIFIED_AI';
       const statusColor = isVerified ? '#00ff88' : (isPending ? '#ffb800' : '#ff3366');
 
+      // Only Government Employee and Admin can approve or reject reports
       const showVerifyButtons = (role === 'gov_employee' || role === 'admin') && isPending;
 
       return `
-        <div class="cockpit-card" style="padding: 12px; margin-bottom: 10px; border-left: 4px solid ${statusColor};">
+        <div class="cockpit-card" style="padding: 12px; margin-bottom: 10px; border-left: 4px solid ${statusColor}; background: rgba(15, 23, 42, 0.65);">
           <div style="display: flex; justify-content: space-between; align-items: center;">
             <div style="font-weight: 700; color: #fff; font-size: 13px;">
               ${r.incident_type} (${r.nearest_highway})
             </div>
             <span class="badge" style="background: rgba(255,255,255,0.08); color: ${statusColor}; font-size: 10px; font-weight: 700;">
-              ${r.verification_status} (${r.confidence_score || 65}% Trust)
+              ${r.verification_status.replace(/_/g, ' ')} (${r.confidence_score || 65}% Trust)
             </span>
           </div>
 
           <div style="font-size: 11px; color: var(--text-muted); margin: 3px 0;">
-            📍 ${r.location_name} · By: <strong style="color: #fff;">${r.officer_name}</strong> (${r.department}) · ${r.reported_at}
+            📍 ${r.location_name} · By: <strong style="color: #fff;">${r.officer_name}</strong> (${r.department || 'Citizen'}) · ${r.reported_at || 'Recently'}
           </div>
 
           <div style="font-size: 12px; color: var(--text-secondary); margin: 6px 0; line-height: 1.3;">
@@ -285,14 +333,18 @@ async function loadFieldReportsList() {
 
           ${showVerifyButtons ? `
             <div style="display: flex; gap: 8px; margin-top: 8px;">
-              <button class="btn-primary" style="padding: 4px 10px; font-size: 11px; flex: 1; background: #00ff88; color: #000;" onclick="verifyReportAction('${r.id}', 'CONFIRM')">
-                ✓ Confirm & Propagate
+              <button class="btn-primary" style="padding: 6px 12px; font-size: 11px; flex: 1; background: #00ff88; color: #000; font-weight: 700;" onclick="verifyReportAction('${r.id}', 'CONFIRM')">
+                ✓ Approve & Propagate
               </button>
-              <button class="btn-secondary" style="padding: 4px 10px; font-size: 11px; flex: 1; border-color: #ff3366; color: #ff3366;" onclick="verifyReportAction('${r.id}', 'REJECT')">
-                ✕ Reject
+              <button class="btn-secondary" style="padding: 6px 12px; font-size: 11px; flex: 1; border-color: #ff3366; color: #ff3366;" onclick="verifyReportAction('${r.id}', 'REJECT')">
+                ✕ Reject / Clear
               </button>
             </div>
-          ` : ''}
+          ` : (role === 'user' ? `
+            <div style="margin-top: 6px; font-size: 10px; color: ${isVerified ? '#00ff88' : '#ffb800'}; display: flex; align-items: center; gap: 4px;">
+              ${isVerified ? '✅ Officially verified by Emergency District Command' : '⏳ Submitted by commuter · Awaiting district authority review'}
+            </div>
+          ` : '')}
         </div>
       `;
     }).join('');

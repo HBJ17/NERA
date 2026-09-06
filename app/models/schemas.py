@@ -141,6 +141,8 @@ class RoutePlan(BaseModel):
     path_coordinates: List[List[float]]
     summary: str
     weather_advisory: str
+    red_zone_count: int = 0
+    ai_risk_breakdown: Optional[Dict[str, Any]] = None
 
 class RouteOptimizationResponse(BaseModel):
     source_name: str
@@ -150,6 +152,8 @@ class RouteOptimizationResponse(BaseModel):
     contingency_detour: Optional[RoutePlan] = None
     delay_delta_minutes: int
     risk_reduction_pct: float
+    red_zones_avoided: int = 0
+    ai_risk_breakdown: Optional[Dict[str, Any]] = None
 
 # --- Simulation Schemas ---
 class DisasterSimulationRequest(BaseModel):

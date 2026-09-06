@@ -5,7 +5,10 @@ services:
     container_name: nera_app
     ports:
       - "8000:8000"
+    volumes:
+      - .:/app
     environment:
       - PORT=8000
       - DEBUG=False
     restart: unless-stopped
+

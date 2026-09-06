@@ -18,7 +18,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <!-- Custom Stylesheet -->
-  <link rel="stylesheet" href="/static/css/style.css">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.2">
 </head>
 <body>
 
@@ -138,7 +138,10 @@
               <div style="font-size: 0.72rem; color: var(--accent-cyan);" id="hud-nav-stats">360 km · 8.2 hrs · Safe Corridor</div>
             </div>
           </div>
-          <button class="user-nav-btn-close" onclick="closeNavigationHUD()">✕</button>
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="user-nav-btn-go" style="padding: 3px 8px; font-size: 0.7rem; background: rgba(0,240,255,0.15); border: 1px solid var(--accent-cyan); color: #fff; border-radius: 4px; cursor: pointer;" onclick="openActiveRouteInGoogleMaps()" title="Open turn-by-turn route in real Google Maps">🌐 Google Maps</button>
+            <button class="user-nav-btn-close" onclick="closeNavigationHUD()">✕</button>
+          </div>
         </div>
         <div class="user-nav-turn-instruction" id="hud-current-turn">
           <span style="font-size: 1.2rem;">⬆️</span>
@@ -149,8 +152,24 @@
         </div>
       </div>
 
+      <!-- Floating Basemap Style Switcher (100% Free - No API Keys) -->
+      <div class="map-floating-basemap-switcher">
+        <button id="btn-basemap-dark" class="basemap-btn active" onclick="setBasemapStyle('dark')">
+          🌙 Dark Matrix
+        </button>
+        <button id="btn-basemap-osm" class="basemap-btn" onclick="setBasemapStyle('osm')">
+          🗺️ Street OSM
+        </button>
+        <button id="btn-basemap-satellite" class="basemap-btn" onclick="setBasemapStyle('satellite')">
+          🛰️ Satellite Topo
+        </button>
+      </div>
+
       <!-- Floating Map Layer Controls -->
       <div class="map-floating-layers">
+        <button id="btn-pin-mode" class="layer-toggle-btn" onclick="togglePinDropMode(this)" title="Drop custom Origin and Destination pins anywhere on the map">
+          📌 Pin Route Mode
+        </button>
         <button class="layer-toggle-btn active" onclick="toggleMapLayer('highways', this)">
           🛣️ Highways
         </button>
@@ -166,7 +185,14 @@
         <button class="layer-toggle-btn active" onclick="toggleMapLayer('hazards', this)">
           ⛰️ Landslide Zones
         </button>
+        <button class="layer-toggle-btn active" onclick="toggleMapLayer('weather', this)">
+          🌧️ Doppler Radar
+        </button>
+        <button class="layer-toggle-btn" onclick="openMapSettingsModal()" title="Map providers & optional API tokens">
+          ⚙️ Map APIs
+        </button>
       </div>
+
 
       <!-- Map Bottom HUD Telemetry -->
       <div class="map-hud-stats">
@@ -371,6 +397,45 @@
             </div>
           </div>
 
+          <!-- River Basin Flash Flood AI Predictor -->
+          <div class="cockpit-card">
+            <div class="cockpit-card-title">
+              <span>🌊 River Basin Flash Flood AI Predictor</span>
+              <span id="flood-risk-tier" class="badge">ANALYZING</span>
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>Rainfall Intensity (mm/24h)</span>
+                <span class="value" id="val-flood-rainfall">95 mm</span>
+              </div>
+              <input type="range" id="slider-flood-rainfall" min="0" max="300" value="95">
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>River Discharge (cumecs)</span>
+                <span class="value" id="val-flood-discharge">38,000 m³/s</span>
+              </div>
+              <input type="range" id="slider-flood-discharge" min="5000" max="80000" step="1000" value="38000">
+            </div>
+
+            <div class="slider-control-group">
+              <div class="slider-label">
+                <span>Current River Gauge (m) vs Danger (8.5m)</span>
+                <span class="value" id="val-flood-gauge">8.2 m</span>
+              </div>
+              <input type="range" id="slider-flood-gauge" min="2.0" max="14.0" step="0.1" value="8.2">
+            </div>
+
+            <!-- AI Meter Box -->
+            <div style="background: rgba(0,0,0,0.4); border: 1px solid var(--border-subtle); border-radius: var(--radius-md); padding: 14px; text-align: center; margin-top: 8px;">
+              <div style="font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase;">Predicted Flood Inundation Probability</div>
+              <div id="flood-risk-meter" style="font-family: var(--font-mono); font-size: 2.4rem; font-weight: 800; color: #00f0ff; margin: 4px 0;">--%</div>
+              <div id="flood-action-protocol" style="font-size: 0.78rem; color: #f8fafc; line-height: 1.3;">Loading AI inference...</div>
+            </div>
+          </div>
+
           <!-- 4-Stream Data Fusion Card -->
           <div class="cockpit-card">
             <div class="cockpit-card-title">
@@ -407,6 +472,9 @@
             <button id="btn-calculate-route" class="btn-primary" onclick="planSmartRoute()">
               🗺️ Calculate AI Optimal Route
             </button>
+            <button id="btn-simulate-route-hazard" class="btn-secondary" style="background: linear-gradient(135deg, rgba(239,68,68,0.2), rgba(220,38,38,0.35)); border-color: #ef4444; color: #fca5a5; font-weight: 700; margin-top: 8px; box-shadow: 0 0 12px rgba(239,68,68,0.25);" onclick="simulateRouteHazard()" title="Simulate real-time mountain disaster along the route to see live dynamic diversion">
+              ⚡ What-If: Simulate Hazard on Route
+            </button>
           </div>
 
           <!-- Route Results Container -->
@@ -437,9 +505,42 @@
 
             <div style="font-size: 0.75rem; color: var(--accent-cyan); font-family: var(--font-mono);" id="route-time-delta"></div>
 
+            <!-- AI Scientific Risk Model Breakdown Card -->
+            <div id="route-ai-risk-card" style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 240, 255, 0.35); border-radius: var(--radius-md); padding: 12px; margin: 10px 0; box-shadow: 0 4px 16px rgba(0,0,0,0.4);">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <div style="font-weight: 700; color: #00f0ff; font-size: 0.82rem; display: flex; align-items: center; gap: 6px;">
+                  <span>🧠</span>
+                  <span>AI Scientific Risk Breakdown (GSI/IMD Model)</span>
+                </div>
+                <span id="route-ai-tier-badge" class="badge" style="background: rgba(0,255,136,0.2); color: #00ff88; font-size: 10px; font-weight: 700;">LOW RISK</span>
+              </div>
+              <div style="font-size: 0.7rem; color: #94a3b8; font-family: var(--font-mono); margin-bottom: 8px;" id="route-ai-formula-text">
+                Formula: CRI = 0.35×R + 0.30×S + 0.20×M + 0.15×H - V_att
+              </div>
+              <div id="route-ai-factor-bars" style="display: flex; flex-direction: column; gap: 6px;">
+                <!-- Populated via routing.js -->
+              </div>
+              <div id="route-ai-env-stats" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.12); font-size: 0.72rem; color: #cbd5e1; display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+                <!-- Telemetry inputs -->
+              </div>
+              <div id="route-ai-protocol-text" style="margin-top: 6px; font-size: 0.72rem; color: #f8fafc; line-height: 1.3; background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+              </div>
+            </div>
+
             <div style="font-weight: 700; color: #fff; font-size: 0.85rem; margin-top: 6px;">
               Turn-by-Turn Navigation:
             </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 8px 0 6px 0;">
+              <button class="btn-primary" onclick="startActiveNavigation()">
+                🧭 Launch Turn HUD
+              </button>
+              <button class="btn-secondary" onclick="openActiveRouteInGoogleMaps()" title="Open directions in real Google Maps">
+                🌐 Open in Google Maps
+              </button>
+            </div>
+            <button class="btn-secondary" style="width: 100%; margin-bottom: 10px; background: rgba(239,68,68,0.18); border-color: #ef4444; color: #fca5a5; font-weight: 700; font-size: 11px;" onclick="simulateRouteHazard()" title="Simulate a disaster blockage on this corridor to see immediate live dynamic rerouting">
+              💥 Test What-If Hazard on This Corridor
+            </button>
             <div class="turn-list" id="route-turn-steps"></div>
           </div>
         </div>
@@ -463,6 +564,19 @@
 
         <!-- TAB 6: GOVERNMENT EMPLOYEE DISTRICT MONITORING & FIELD FEEDS -->
         <div id="tab-reports" class="cockpit-tab-pane" style="display: none; flex-direction: column; gap: 16px;">
+          <!-- Citizen / User Action Card (Shown only in User mode) -->
+          <div class="cockpit-card" id="user-report-action-card" style="display: none; background: linear-gradient(135deg, rgba(0, 240, 255, 0.08), rgba(0, 255, 136, 0.05)); border: 1px solid rgba(0, 240, 255, 0.25);">
+            <div style="font-weight: 700; color: #fff; font-size: 0.92rem; margin-bottom: 4px;">
+              📷 Crowdsourced Field Hazard Reporting
+            </div>
+            <div style="font-size: 0.78rem; color: #cbd5e1; margin-bottom: 12px; line-height: 1.4;">
+              Spotted a landslide, bridge waterlogging, or road blockage? Submit live ground truth with your camera photo & GPS to alert emergency authorities and update the resilient digital map.
+            </div>
+            <button class="btn-primary" style="width: 100%; font-size: 0.85rem; padding: 10px;" onclick="openFieldReportModal()">
+              📷 Report New Road Hazard / Blockage
+            </button>
+          </div>
+
           <!-- District Officer Status Card -->
           <div class="cockpit-card" id="district-officer-banner">
             <div class="cockpit-card-title">
@@ -514,9 +628,17 @@
           <!-- Field Reports & Verification Queue -->
           <div class="cockpit-card">
             <div class="cockpit-card-title">
-              <span>📋 Field Reports Verification Queue</span>
-              <span class="badge" style="background: rgba(255,184,0,0.2); color: var(--accent-amber);">LIVE VERIFICATION</span>
+              <span id="reports-section-title">📋 Field Reports Verification Queue</span>
+              <span class="badge" id="reports-section-badge" style="background: rgba(255,184,0,0.2); color: var(--accent-amber);">LIVE VERIFICATION</span>
             </div>
+
+            <!-- Quick Filter Chips for Govt Employee & Admin -->
+            <div id="reports-filter-bar" style="display: flex; gap: 6px; margin: 8px 0;">
+              <button class="report-filter-btn active" id="filter-all-btn" onclick="setReportsFilter('all', this)" style="background: rgba(255,255,255,0.12); border: 1px solid var(--border-subtle); color: #fff; padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">All</button>
+              <button class="report-filter-btn" id="filter-pending-btn" onclick="setReportsFilter('pending', this)" style="background: transparent; border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">⚠️ Pending Review</button>
+              <button class="report-filter-btn" id="filter-verified-btn" onclick="setReportsFilter('verified', this)" style="background: transparent; border: 1px solid var(--border-subtle); color: var(--text-muted); padding: 4px 10px; border-radius: 4px; font-size: 0.72rem; cursor: pointer;">✓ Verified Active</button>
+            </div>
+
             <div id="field-reports-timeline" style="margin-top: 10px;">
               <!-- Rendered via JS -->
             </div>
@@ -708,17 +830,54 @@
     </div>
   </div>
 
+  <!-- MODAL: MAP APIS & PROVIDER SETTINGS -->
+  <div class="modal-backdrop" id="modal-map-settings">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">🗺️ Geospatial Map Providers & Real APIs</div>
+        <button class="modal-close-btn" onclick="closeMapSettingsModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="padding: 20px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="background: rgba(0, 240, 255, 0.08); border: 1px solid rgba(0, 240, 255, 0.25); border-radius: var(--radius-md); padding: 12px; font-size: 0.82rem; color: #cbd5e1; line-height: 1.4;">
+          <div style="font-weight: 700; color: #00f0ff; margin-bottom: 4px;">⚡ 100% Free & Zero-Key Map Stack Active</div>
+          NERA utilizes <b>OpenStreetMap Carto Dark</b>, <b>ESRI Satellite Imagery</b>, <b>OSRM Real Road Routing Engine</b>, and <b>Nominatim Geocoding</b>. You can explore and route between all 84 district hubs across all 8 North Eastern states out-of-the-box with zero setup!
+        </div>
+
+        <div>
+          <label style="font-size: 0.78rem; font-weight: 600; color: #fff; margin-bottom: 4px; display: block;">
+            Optional Mapbox Access Token
+          </label>
+          <input type="text" id="setting-mapbox-key" class="route-dropdown" style="width: 100%; font-family: var(--font-mono); font-size: 0.8rem;" placeholder="pk.eyJ1Ijoi...">
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Used for HD vector tiles or 3D terrain extrusion if provided.</div>
+        </div>
+
+        <div>
+          <label style="font-size: 0.78rem; font-weight: 600; color: #fff; margin-bottom: 4px; display: block;">
+            Optional Google Maps API Key
+          </label>
+          <input type="text" id="setting-google-key" class="route-dropdown" style="width: 100%; font-family: var(--font-mono); font-size: 0.8rem;" placeholder="AIzaSy...">
+          <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 2px;">Direct Google Maps turn-by-turn navigation is supported out-of-the-box via external URL intent.</div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 8px;">
+          <button type="button" class="btn-secondary" onclick="closeMapSettingsModal()">Cancel</button>
+          <button type="button" class="btn-primary" onclick="saveMapApiSettings()">Save Configuration</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Leaflet JS -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   
   <!-- App JS Modules -->
-  <script src="/static/js/map.js"></script>
-  <script src="/static/js/simulation.js"></script>
-  <script src="/static/js/routing.js"></script>
-  <script src="/static/js/prediction.js"></script>
-  <script src="/static/js/supplies.js"></script>
-  <script src="/static/js/fieldReport.js"></script>
-  <script src="/static/js/alerts.js"></script>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/map.js?v=2.6"></script>
+  <script src="/static/js/simulation.js?v=2.6"></script>
+  <script src="/static/js/routing.js?v=2.6"></script>
+  <script src="/static/js/prediction.js?v=2.6"></script>
+  <script src="/static/js/supplies.js?v=2.6"></script>
+  <script src="/static/js/fieldReport.js?v=2.6"></script>
+  <script src="/static/js/alerts.js?v=2.6"></script>
+  <script src="/static/js/app.js?v=2.6"></script>
 </body>
 </html>

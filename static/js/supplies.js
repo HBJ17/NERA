@@ -3,60 +3,102 @@
  * Module 8: Hospital Survival Runway & Critical Medical Inventory System
  * 
  * Tracks buffer stock days for Liquid Medical Oxygen (LMO), ICU antibiotics,
- * vaccines, and food rations across strategic tertiary hospitals in the North East.
+ * vaccines, and food rations across strategic tertiary hospitals in all 32 North East districts.
  */
-function renderSuppliesRunway() {
-  if (!twinData || !twinData.districts) return;
+let supplyFilter = 'all'; // 'all', 'critical', 'warning'
+
+function renderSuppliesRunway(filterMode = 'all') {
+  supplyFilter = filterMode;
+  if (!window.twinData || !window.twinData.districts) return;
 
   const container = document.getElementById('supplies-hospital-list');
   if (!container) return;
 
-  const criticalHospitals = [
-    { name: "AIIMS Guwahati Regional Hub", district: "Guwahati", o2: 18.5, meds: 30, food: 45, status: "GOOD" },
-    { name: "Silchar Medical College Hospital (SMCH)", district: "Silchar (Barak Valley)", o2: 4.5, meds: 6.5, food: 12, status: "CRITICAL_LOW" },
-    { name: "Tawang District Civil Hospital", district: "Tawang (High Altitude)", o2: 3.8, meds: 7.0, food: 18, status: "WARNING" },
-    { name: "Regional Institute of Medical Sciences (RIMS)", district: "Imphal", o2: 9.0, meds: 17.0, food: 24, status: "GOOD" },
-    { name: "STNM Multispeciality Hospital", district: "Gangtok (Sikkim)", o2: 6.2, meds: 12.0, food: 22, status: "WARNING" },
-    { name: "Civil Hospital Haflong", district: "Haflong (Dima Hasao)", o2: 3.0, meds: 5.0, food: 8.0, status: "CRITICAL_LOW" }
-  ];
+  let districts = [...window.twinData.districts];
 
-  container.innerHTML = criticalHospitals.map(h => {
-    const isCritical = h.o2 < 5.0;
-    const badgeColor = isCritical ? '#ff3366' : (h.o2 < 8.0 ? '#ffb800' : '#00ff88');
+  if (supplyFilter === 'critical') {
+    districts = districts.filter(d => d.stock_oxygen_days < 5.0 || d.stock_medicines_days < 8.0);
+  } else if (supplyFilter === 'warning') {
+    districts = districts.filter(d => d.stock_oxygen_days < 9.0);
+  }
 
-    return `
-      <div class="cockpit-card" style="border-left: 4px solid ${badgeColor}; padding: 12px; margin-bottom: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="font-weight: 700; color: #fff; font-size: 13px;">🏥 ${h.name}</div>
-          <span style="font-size: 10px; font-weight: bold; color: ${badgeColor}; font-family: var(--font-mono);">${h.status}</span>
+  // Sort by lowest oxygen days first
+  districts.sort((a, b) => a.stock_oxygen_days - b.stock_oxygen_days);
+
+  container.innerHTML = `
+    <div style="display: flex; gap: 6px; margin-bottom: 10px;">
+      <button class="user-nav-btn-go ${supplyFilter === 'all' ? 'active' : ''}" style="padding: 3px 8px; font-size: 11px;" onclick="renderSuppliesRunway('all')">
+        All Districts (${window.twinData.districts.length})
+      </button>
+      <button class="user-nav-btn-go ${supplyFilter === 'critical' ? 'active' : ''}" style="padding: 3px 8px; font-size: 11px; background: rgba(255,51,102,0.2); color: #ff3366; border-color: #ff3366;" onclick="renderSuppliesRunway('critical')">
+        🚨 Critical Oxygen (<5d)
+      </button>
+      <button class="user-nav-btn-go ${supplyFilter === 'warning' ? 'active' : ''}" style="padding: 3px 8px; font-size: 11px; background: rgba(255,184,0,0.2); color: #ffb800; border-color: #ffb800;" onclick="renderSuppliesRunway('warning')">
+        ⚠️ Warning (<9d)
+      </button>
+    </div>
+    ${districts.map(d => {
+      const isCritical = d.stock_oxygen_days < 5.0;
+      const isWarning = d.stock_oxygen_days < 9.0;
+      const statusLabel = isCritical ? 'CRITICAL_LOW' : (isWarning ? 'WARNING' : 'STABLE');
+      const badgeColor = isCritical ? '#ff3366' : (isWarning ? '#ffb800' : '#00ff88');
+      const hospName = `${d.name.split(' (')[0]} District Civil & Referral Hospital`;
+
+      return `
+        <div class="cockpit-card" style="border-left: 4px solid ${badgeColor}; padding: 12px; margin-bottom: 8px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-weight: 700; color: #fff; font-size: 13px;">🏥 ${hospName}</div>
+            <span style="font-size: 10px; font-weight: bold; color: ${badgeColor}; font-family: var(--font-mono);">${statusLabel}</span>
+          </div>
+          <div style="font-size: 11px; color: #94a3b8; margin: 2px 0;">📍 ${d.name} (${d.state}) · ${d.hospitals} Civil Hospitals</div>
+          
+          <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px;">
+            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
+              <div style="font-size: 10px; color: #94a3b8;">Liquid Oxygen</div>
+              <div style="font-size: 13px; font-weight: bold; color: ${isCritical ? '#ff3366' : (isWarning ? '#ffb800' : '#00f0ff')}; font-family: var(--font-mono);">${d.stock_oxygen_days}d</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
+              <div style="font-size: 10px; color: #94a3b8;">ICU Meds</div>
+              <div style="font-size: 13px; font-weight: bold; color: #fff; font-family: var(--font-mono);">${d.stock_medicines_days}d</div>
+            </div>
+            <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
+              <div style="font-size: 10px; color: #94a3b8;">FCI Rations</div>
+              <div style="font-size: 13px; font-weight: bold; color: #fff; font-family: var(--font-mono);">${d.stock_rations_days}d</div>
+            </div>
+          </div>
+
+          ${isWarning ? `
+            <button class="btn-primary" style="margin-top: 8px; font-size: 11px; padding: 5px 8px; width: 100%; background: ${isCritical ? '#ff3366' : 'linear-gradient(135deg, #00f0ff, #0077ff)'}; color: ${isCritical ? '#fff' : '#000'}; font-weight: 700;" onclick="openEmergencySupplyDispatch('${hospName.replace(/'/g, "\\'")}', '${d.id}', [${d.coordinates[0]}, ${d.coordinates[1]}])">
+              ⚡ Dispatch Emergency LMO Convoy (Green Corridor)
+            </button>
+          ` : ''}
         </div>
-        <div style="font-size: 11px; color: #94a3b8;">${h.district}</div>
-        
-        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 8px;">
-          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
-            <div style="font-size: 10px; color: #94a3b8;">Oxygen</div>
-            <div style="font-size: 13px; font-weight: bold; color: ${h.o2 < 5 ? '#ff3366' : '#00f0ff'}; font-family: var(--font-mono);">${h.o2}d</div>
-          </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
-            <div style="font-size: 10px; color: #94a3b8;">Antibiotics</div>
-            <div style="font-size: 13px; font-weight: bold; color: #fff; font-family: var(--font-mono);">${h.meds}d</div>
-          </div>
-          <div style="background: rgba(0,0,0,0.3); padding: 6px; border-radius: 4px; text-align: center;">
-            <div style="font-size: 10px; color: #94a3b8;">FCI Rations</div>
-            <div style="font-size: 13px; font-weight: bold; color: #fff; font-family: var(--font-mono);">${h.food}d</div>
-          </div>
-        </div>
-
-        ${isCritical ? `
-          <button class="btn-primary" style="margin-top: 8px; font-size: 11px; padding: 4px 8px; width: 100%;" onclick="openEmergencySupplyDispatch('${h.name}')">
-            🚨 Dispatch Emergency Supply Convoy
-          </button>
-        ` : ''}
-      </div>
-    `;
-  }).join('');
+      `;
+    }).join('')}
+  `;
 }
 
-function openEmergencySupplyDispatch(hospitalName) {
-  alert(`⚡ DISPATCH PROTOCOL TRIGGERED: Emergency Liquid Medical Oxygen Convoy assigned from Guwahati AIIMS Depot to ${hospitalName}. AI Safe-Corridor route locked.`);
+async function openEmergencySupplyDispatch(hospitalName, districtId, coords) {
+  // Plan route from AIIMS Guwahati Regional Hub to Target Hospital
+  if (typeof planSmartRoute === 'function') {
+    await planSmartRoute("node_guwahati", districtId);
+  }
+
+  // Switch to routing tab and focus map
+  const routeTabBtn = document.querySelector('[data-tab="routing"]');
+  if (routeTabBtn && typeof switchTab === 'function') {
+    switchTab('routing', routeTabBtn);
+  }
+
+  const activeMap = window.map || (typeof map !== 'undefined' ? map : null);
+  if (activeMap && coords) {
+    activeMap.setView(coords, 9, { animate: true });
+  }
+
+  if (typeof startActiveNavigation === 'function') {
+    startActiveNavigation();
+  }
+
+  alert(`🚨 EMERGENCY GREEN CORRIDOR ACTIVATED:\n\nConvoy: AS-01-GC-9281 (Liquid Medical Oxygen 16,000L)\nOrigin: AIIMS Guwahati Regional Hub\nDestination: ${hospitalName}\n\nNavigation HUD locked with zero-traffic clearance priority.`);
 }
+

@@ -11,6 +11,10 @@ let currentRole = 'admin'; // 'admin', 'user', 'gov_employee'
 let currentDistrictId = 'node_kohima';
 let currentPersona = 'sdma';
 
+// Expose on global window object for cross-module coordination
+window.currentRole = currentRole;
+window.currentDistrictId = currentDistrictId;
+
 document.addEventListener('DOMContentLoaded', () => {
   initDigitalTwinMap();
   initPredictionControls();
@@ -23,11 +27,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // Populate dropdowns once map data is loaded
   setTimeout(() => {
     populateRouteDropdowns();
+    populateGovDistrictDropdown();
     renderDistrictGrid();
     renderSuppliesRunway();
     initRoleState();
   }, 800);
 });
+
+function populateGovDistrictDropdown() {
+  const distSelect = document.getElementById('active-district-select');
+  if (!distSelect || !window.twinData || !window.twinData.districts) return;
+
+  const currentVal = distSelect.value;
+  const states = {};
+  window.twinData.districts.forEach(d => {
+    if (!states[d.state]) states[d.state] = [];
+    states[d.state].push(d);
+  });
+
+  let html = '';
+  Object.keys(states).sort().forEach(stateName => {
+    html += `<optgroup label="${stateName}">`;
+    states[stateName].forEach(d => {
+      html += `<option value="${d.id}">${d.name.split(' (')[0]} (${d.state})</option>`;
+    });
+    html += `</optgroup>`;
+  });
+
+  distSelect.innerHTML = html;
+  if (currentVal && Array.from(distSelect.options).some(o => o.value === currentVal)) {
+    distSelect.value = currentVal;
+  }
+}
 
 function initRoleState() {
   const savedRole = localStorage.getItem('nera_role') || 'admin';
@@ -56,7 +87,12 @@ function startClock() {
 function switchTab(tabId, btn) {
   // Update button active state
   document.querySelectorAll('.cockpit-tab-btn').forEach(b => b.classList.remove('active'));
-  if (btn) btn.classList.add('active');
+  if (btn) {
+    btn.classList.add('active');
+  } else {
+    const matchingBtn = document.querySelector(`[data-tab="${tabId}"]`);
+    if (matchingBtn) matchingBtn.classList.add('active');
+  }
 
   // Hide all tab panes
   document.querySelectorAll('.cockpit-tab-pane').forEach(p => p.style.display = 'none');
@@ -67,18 +103,112 @@ function switchTab(tabId, btn) {
     targetPane.style.display = 'flex';
   }
 
+  // Refresh Leaflet map dimensions if layout shifted
+  if (window.map) {
+    setTimeout(() => {
+      try { window.map.invalidateSize(); } catch (e) {}
+    }, 60);
+  }
+
+  // Tab specific refreshes
   if (tabId === 'analytics' && typeof loadAnalyticsDashboard === 'function') {
     loadAnalyticsDashboard();
+  } else if (tabId === 'prediction') {
+    if (typeof factorChart !== 'undefined' && factorChart) {
+      try { factorChart.resize(); } catch (e) {}
+    }
+    if (typeof predictLandslideRisk === 'function') predictLandslideRisk();
+    if (typeof predictFloodRisk === 'function') predictFloodRisk();
+  } else if (tabId === 'supplies' && typeof renderSuppliesRunway === 'function') {
+    renderSuppliesRunway();
+  } else if (tabId === 'reports' && typeof loadFieldReportsList === 'function') {
+    loadFieldReportsList();
+  } else if (tabId === 'twin' && typeof renderDistrictGrid === 'function') {
+    renderDistrictGrid();
+  }
+}
+
+function applyRolePermissions(roleKey) {
+  const tabTwin = document.querySelector('[data-tab="twin"]');
+  const tabSimulation = document.querySelector('[data-tab="simulation"]');
+  const tabPrediction = document.querySelector('[data-tab="prediction"]');
+  const tabRouting = document.querySelector('[data-tab="routing"]');
+  const tabSupplies = document.querySelector('[data-tab="supplies"]');
+  const tabReports = document.querySelector('[data-tab="reports"]');
+  const tabAnalytics = document.querySelector('[data-tab="analytics"]');
+  const simHeaderBtn = document.querySelector('.btn-simulation-glow');
+  const officerBanner = document.getElementById('district-officer-banner');
+  const userReportCard = document.getElementById('user-report-action-card');
+  const reportsFilterBar = document.getElementById('reports-filter-bar');
+  const reportsSectionTitle = document.getElementById('reports-section-title');
+  const reportsSectionBadge = document.getElementById('reports-section-badge');
+
+  if (roleKey === 'admin') {
+    // Admin: ALL existing features enabled
+    if (tabTwin) { tabTwin.style.display = 'inline-flex'; tabTwin.innerHTML = '🌐 Digital Twin'; }
+    if (tabSimulation) tabSimulation.style.display = 'inline-flex';
+    if (tabPrediction) tabPrediction.style.display = 'inline-flex';
+    if (tabRouting) { tabRouting.style.display = 'inline-flex'; tabRouting.innerHTML = '🗺️ Smart Routing'; }
+    if (tabSupplies) tabSupplies.style.display = 'inline-flex';
+    if (tabReports) { tabReports.style.display = 'inline-flex'; tabReports.innerHTML = '📱 Field Feeds'; }
+    if (tabAnalytics) tabAnalytics.style.display = 'inline-flex';
+    if (simHeaderBtn) simHeaderBtn.style.display = 'inline-flex';
+
+    if (officerBanner) officerBanner.style.display = 'block';
+    if (userReportCard) userReportCard.style.display = 'none';
+    if (reportsFilterBar) reportsFilterBar.style.display = 'flex';
+    if (reportsSectionTitle) reportsSectionTitle.innerText = '📋 Field Reports & Verification Queue';
+    if (reportsSectionBadge) reportsSectionBadge.innerText = 'LIVE VERIFICATION';
+
+  } else if (roleKey === 'user') {
+    // Citizen / User: ONLY Smart Routing and Field Reporting
+    if (tabTwin) tabTwin.style.display = 'none';
+    if (tabSimulation) tabSimulation.style.display = 'none';
+    if (tabPrediction) tabPrediction.style.display = 'none';
+    if (tabRouting) { tabRouting.style.display = 'inline-flex'; tabRouting.innerHTML = '🗺️ Smart Routing'; }
+    if (tabSupplies) tabSupplies.style.display = 'none';
+    if (tabReports) { tabReports.style.display = 'inline-flex'; tabReports.innerHTML = '📷 Field Reporting'; }
+    if (tabAnalytics) tabAnalytics.style.display = 'none';
+    if (simHeaderBtn) simHeaderBtn.style.display = 'none';
+
+    // Hide internal government officer banner, show citizen reporting card
+    if (officerBanner) officerBanner.style.display = 'none';
+    if (userReportCard) userReportCard.style.display = 'block';
+    if (reportsFilterBar) reportsFilterBar.style.display = 'none';
+    if (reportsSectionTitle) reportsSectionTitle.innerText = '📢 Community Hazard Feed';
+    if (reportsSectionBadge) reportsSectionBadge.innerText = 'CITIZEN FEED';
+
+  } else if (roleKey === 'gov_employee') {
+    // Government Employee: ONLY Field Reports Checking, Approval, and Smart Routing
+    if (tabTwin) tabTwin.style.display = 'none';
+    if (tabSimulation) tabSimulation.style.display = 'none';
+    if (tabPrediction) tabPrediction.style.display = 'none';
+    if (tabRouting) { tabRouting.style.display = 'inline-flex'; tabRouting.innerHTML = '🗺️ Smart Routing'; }
+    if (tabSupplies) tabSupplies.style.display = 'none';
+    if (tabReports) { tabReports.style.display = 'inline-flex'; tabReports.innerHTML = '📋 Field Approvals'; }
+    if (tabAnalytics) tabAnalytics.style.display = 'none';
+    if (simHeaderBtn) simHeaderBtn.style.display = 'none';
+
+    // Show officer command banner, hide user card, show approval filter bar
+    if (officerBanner) officerBanner.style.display = 'block';
+    if (userReportCard) userReportCard.style.display = 'none';
+    if (reportsFilterBar) reportsFilterBar.style.display = 'flex';
+    if (reportsSectionTitle) reportsSectionTitle.innerText = '📋 Field Reports & Approvals';
+    if (reportsSectionBadge) reportsSectionBadge.innerText = 'OFFICER QUEUE';
   }
 }
 
 async function switchRoleAndPersona(roleKey, btn, optDistrict) {
   currentRole = roleKey;
+  window.currentRole = roleKey;
   localStorage.setItem('nera_role', roleKey);
   
   // Update active button
   document.querySelectorAll('.persona-btn').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
+
+  // Apply strict role permissions to tabs & features
+  applyRolePermissions(roleKey);
 
   // Toggle district selector visibility
   const distContainer = document.getElementById('header-district-container');
@@ -90,6 +220,7 @@ async function switchRoleAndPersona(roleKey, btn, optDistrict) {
   if (optDistrict && distSelect) {
     distSelect.value = optDistrict;
     currentDistrictId = optDistrict;
+    window.currentDistrictId = optDistrict;
   }
 
   // Notify backend of role switch
@@ -103,7 +234,7 @@ async function switchRoleAndPersona(roleKey, btn, optDistrict) {
     console.warn('Role switch network fallback:', e);
   }
 
-  // Adapt UI to Role
+  // Adapt UI to Role: Activate role's primary tab
   if (roleKey === 'admin') {
     const tabBtn = document.querySelector('[data-tab="twin"]');
     if (tabBtn) switchTab('twin', tabBtn);
@@ -121,10 +252,14 @@ async function switchRoleAndPersona(roleKey, btn, optDistrict) {
   if (typeof loadActiveAlerts === 'function') {
     loadActiveAlerts();
   }
+  if (typeof loadFieldReportsList === 'function') {
+    loadFieldReportsList();
+  }
 }
 
 async function onDistrictChange(districtId) {
   currentDistrictId = districtId;
+  window.currentDistrictId = districtId;
   localStorage.setItem('nera_district', districtId);
 
   try {
@@ -205,22 +340,31 @@ function updateFleetOperatorView(fleet) {
   if (!container) return;
 
   container.innerHTML = fleet.map(v => {
-    let cargoClass = 'badge-rations';
-    if (v.cargo_type.toLowerCase().includes('oxygen')) cargoClass = 'badge-oxygen';
-    if (v.cargo_type.toLowerCase().includes('vaccine') || v.cargo_type.toLowerCase().includes('insulin')) cargoClass = 'badge-vaccine';
+    const isCar = v.category === 'car';
+    const icon = isCar ? '🚗' : '🚚';
+    const borderCol = isCar ? 'rgba(0,210,255,0.4)' : 'rgba(255,51,102,0.4)';
+    const tagBg = isCar ? 'rgba(0,210,255,0.2)' : 'rgba(255,51,102,0.2)';
+    const tagCol = isCar ? '#00d2ff' : '#ff3366';
+    const catLabel = isCar ? 'CIVILIAN CAR' : (v.cargo_priority || 'LOGISTICS');
 
     return `
-      <div class="fleet-card" onclick="focusOnVehicle([${v.current_coordinates[0]}, ${v.current_coordinates[1]}])">
+      <div class="fleet-card" style="border-left: 3px solid ${tagCol}; background: rgba(15,23,42,0.6);" onclick="focusOnVehicle([${v.current_coordinates[0]}, ${v.current_coordinates[1]}])">
         <div class="fleet-card-header">
-          <span class="vehicle-plate">🚚 ${v.vehicle_number}</span>
-          <span class="vehicle-cargo-badge ${cargoClass}">${v.cargo_priority}</span>
+          <span class="vehicle-plate" style="color: ${tagCol}; font-weight: 700;">${icon} ${v.vehicle_number}</span>
+          <span class="vehicle-cargo-badge" style="background: ${tagBg}; color: ${tagCol}; border: 1px solid ${borderCol}; font-size: 10px;">${catLabel}</span>
         </div>
-        <div style="font-size: 12px; color: #fff; font-weight: 600;">${v.cargo_type}</div>
-        <div class="fleet-route-desc">${v.source.split(' (')[0]} ➔ ${v.destination.split(' (')[0]}</div>
+        <div style="font-size: 12px; color: #fff; font-weight: 600; margin-top: 2px;">📦 ${v.cargo_type}</div>
+        <div style="font-size: 11px; color: #94a3b8;">👤 Driver: <strong style="color: #cbd5e1;">${v.driver_name}</strong></div>
+        <div class="fleet-route-desc">🎯 ${v.source.split(' (')[0]} ➔ ${v.destination.split(' (')[0]}</div>
         <div class="fleet-telemetry-row">
           <span>Speed: ${v.speed_kmh} km/h</span>
           <span>ETA: ${v.eta_timestamp}</span>
           <span style="color: ${v.status === 'delayed' ? '#ffb800' : '#00ff88'}; font-weight: bold;">${v.status.toUpperCase()}</span>
+        </div>
+        <div style="margin-top: 6px;">
+          <button class="user-nav-btn-go" style="width: 100%; padding: 4px 8px; font-size: 11px;" onclick="event.stopPropagation(); trackVehicleRoute('${v.id}', '${v.source.replace(/'/g, "\\'")}', '${v.destination.replace(/'/g, "\\'")}')">
+            🗺️ Track Route Live
+          </button>
         </div>
       </div>
     `;
