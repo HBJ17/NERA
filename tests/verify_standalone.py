@@ -170,10 +170,19 @@ def run_standalone_checks():
     assert "geofence_hazard_alert" in o2_trucks[0]
     print(f"[OK] 14. Convoy GPS Telemetry: Cold-Chain Monitoring ({o2_trucks[0]['cold_chain_temp_c']}°C) & Geofencing Active: OK")
 
-    print("\n>>> ALL 14 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
+    # 15. Multilingual Emergency Broadcast & Authority Hotline Directory
+    hl_res = client.get("/api/alerts/hotlines")
+    assert hl_res.status_code == 200
+    hl_data = hl_res.json()
+    assert len(hl_data["state_eoc"]) == 8
+    assert len(hl_data["bro_projects"]) >= 4
+    print(f"[OK] 15. Emergency Broadcast & Hotlines: 8 State EOCs & {len(hl_data['bro_projects'])} BRO Project Bases Verified: OK")
+
+    print("\n>>> ALL 15 STANDALONE INTEGRATION CHECKS PASSED SUCCESSFULLY! <<<")
 
 if __name__ == "__main__":
     run_standalone_checks()
+
 
 
 

@@ -79,6 +79,25 @@ function renderAlertsModalList() {
         </button>
       </div>
     `).join('')}
+    <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed rgba(255,255,255,0.15);">
+      <div style="font-weight: 700; color: var(--accent-cyan); font-size: 0.8rem; margin-bottom: 6px;">
+        📞 Official Disaster Hotlines & Quick-Dispatch (NER)
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 0.72rem;">
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+          <strong style="color: #fff;">NDRF 1st Bn (Patgaon):</strong> <a href="tel:+913612840284" style="color: var(--accent-cyan); text-decoration: none;">+91-361-2840284</a>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+          <strong style="color: #fff;">BRO Project Vartak:</strong> <a href="tel:+913712259123" style="color: var(--accent-cyan); text-decoration: none;">+91-3712-259123</a>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+          <strong style="color: #fff;">NHIDCL Highway Help:</strong> <a href="tel:1033" style="color: var(--accent-cyan); text-decoration: none;">1033 (Toll Free)</a>
+        </div>
+        <div style="background: rgba(0,0,0,0.3); padding: 6px 8px; border-radius: 4px;">
+          <strong style="color: #fff;">National Disaster SOS:</strong> <a href="tel:112" style="color: var(--accent-red); text-decoration: none;">112 (Emergency)</a>
+        </div>
+      </div>
+    </div>
   `;
 }
 

@@ -38,9 +38,43 @@ def get_scoped_alerts(
         ]
         return district_alerts if district_alerts else all_alerts[:2]
 
-    # For citizen / user: local / high-priority transit warnings
     user_alerts = [
         a for a in all_alerts
         if a.get("severity") in ("CRITICAL_DANGER", "WARNING")
     ]
     return user_alerts if user_alerts else all_alerts[:3]
+
+@router.get("/hotlines")
+def get_emergency_hotlines() -> Dict[str, Any]:
+    """
+    Returns official 8-state Disaster Management Authority (SDMA), NDRF, BRO,
+    and Highway Police emergency control room hotlines for 1-click dispatch.
+    """
+    return {
+        "status": "success",
+        "national_emergency_number": "112",
+        "highway_toll_free": "1033 (NHIDCL Emergency Road Assistance)",
+        "ndrf_headquarters": {
+            "unit": "NDRF 1st Battalion (Patgaon, Guwahati)",
+            "phone": "+91-361-2840284",
+            "mobile": "+91-94350-11234",
+            "coverage": "Assam, Meghalaya, Mizoram, Tripura"
+        },
+        "bro_projects": [
+            {"name": "BRO Project Vartak", "base": "Tezpur (Assam)", "phone": "+91-3712-259123", "sector": "Western Arunachal & NH-13 Sela Pass"},
+            {"name": "BRO Project Pushpak", "base": "Aizawl (Mizoram)", "phone": "+91-389-2351240", "sector": "Mizoram & Barak Valley NH-06"},
+            {"name": "BRO Project Sewak", "base": "Dimapur (Nagaland)", "phone": "+91-3862-248102", "sector": "Nagaland & Manipur NH-29"},
+            {"name": "BRO Project Swastik", "base": "Gangtok (Sikkim)", "phone": "+91-3592-202244", "sector": "Sikkim NH-10 Teesta Lifeline"}
+        ],
+        "state_eoc": [
+            {"state": "Assam", "agency": "ASDMA State Control Room", "helpline": "1070 / 1079", "phone": "+91-361-2237221"},
+            {"state": "Arunachal Pradesh", "agency": "APSDMA Emergency Cell", "helpline": "1070", "phone": "+91-360-2212200"},
+            {"state": "Meghalaya", "agency": "SDMA Shillong", "helpline": "1070", "phone": "+91-364-2502188"},
+            {"state": "Nagaland", "agency": "NSDMA Kohima", "helpline": "1070", "phone": "+91-370-2291122"},
+            {"state": "Manipur", "agency": "Manipur Relief & Disaster Cell", "helpline": "1070", "phone": "+91-385-2443441"},
+            {"state": "Mizoram", "agency": "DM&R Aizawl", "helpline": "1070", "phone": "+91-389-2335842"},
+            {"state": "Tripura", "agency": "TSDMA Agartala", "helpline": "1070", "phone": "+91-381-2416045"},
+            {"state": "Sikkim", "agency": "SSDMA Gangtok", "helpline": "1070 / 1077", "phone": "+91-3592-201145"}
+        ]
+    }
+
