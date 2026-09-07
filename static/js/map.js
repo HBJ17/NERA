@@ -24,7 +24,6 @@ let layers = {
 };
 
 let twinData = null;
-let simulationHazardLayer = null;
 
 // Expose on global window object for cross-module access
 window.map = null;
