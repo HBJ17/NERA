@@ -417,34 +417,36 @@ async function triggerPointHazard(lat, lng, disasterType = 'landslide', edgeId =
     // 6. Trigger Real-Time Dynamic Rerouting!
     showToast(`💥 <b>Disaster Injected!</b><br>${simResult.severed_highway} blocked. Evaluating real-time diversion...`, 3000);
 
-    setTimeout(async () => {
-      if (typeof planSmartRoute === 'function') {
-        let src = document.getElementById('route-source-select') ? document.getElementById('route-source-select').value : null;
-        let dst = document.getElementById('route-dest-select') ? document.getElementById('route-dest-select').value : null;
+    // Recalculate before resolving this operation.  Callers such as the route-level
+    // simulation button must not report completion while the old corridor is still
+    // displayed.
+    if (typeof planSmartRoute === 'function') {
+      let src = document.getElementById('route-source-select') ? document.getElementById('route-source-select').value : null;
+      let dst = document.getElementById('route-dest-select') ? document.getElementById('route-dest-select').value : null;
 
-        // If user already has an active route calculated and displayed, keep their endpoints
-        if (window.activeRouteResponse && window.activeRouteResponse.recommended_route && src && dst && src !== dst) {
-          // Keep user's active route origin and destination
-        } else {
-          // If no route calculated yet, route between the two hubs connected by the severed road
-          src = simResult.source_node || 'node_guwahati';
-          dst = simResult.target_node || 'node_shillong';
-          const srcSel = document.getElementById('route-source-select');
-          const dstSel = document.getElementById('route-dest-select');
-          if (srcSel) srcSel.value = src;
-          if (dstSel) dstSel.value = dst;
-        }
-
-        await planSmartRoute(src, dst);
-        if (typeof startActiveNavigation === 'function') {
-          startActiveNavigation();
-        }
+      // If user already has an active route calculated and displayed, keep their endpoints.
+      if (!(window.activeRouteResponse && window.activeRouteResponse.recommended_route && src && dst && src !== dst)) {
+        // If no route has been calculated, route between the two hubs connected by the severed road.
+        src = simResult.source_node || 'node_guwahati';
+        dst = simResult.target_node || 'node_shillong';
+        const srcSel = document.getElementById('route-source-select');
+        const dstSel = document.getElementById('route-dest-select');
+        if (srcSel) srcSel.value = src;
+        if (dstSel) dstSel.value = dst;
       }
-    }, 200);
+
+      await planSmartRoute(src, dst);
+      if (typeof startActiveNavigation === 'function') {
+        startActiveNavigation();
+      }
+    }
+
+    return simResult;
 
   } catch (err) {
     console.error("Point hazard simulation error:", err);
     showToast(`⚠️ <b>Simulation Notice:</b> ${err.message}`, 4000);
+    throw err;
   }
 }
 window.triggerPointHazard = triggerPointHazard;
@@ -577,6 +579,7 @@ async function simulateRouteHazard() {
 
     // Identify hazard point on the currently calculated route
     let hazardPt = null;
+    let hazardEdgeId = null;
     if (window.activeRouteResponse && window.activeRouteResponse.recommended_route) {
       const rec = window.activeRouteResponse.recommended_route;
       if (rec.segments && rec.segments.length > 0) {
@@ -585,6 +588,7 @@ async function simulateRouteHazard() {
         const targetSeg = rec.segments[targetIdx];
         if (targetSeg.coordinates && targetSeg.coordinates.length > 0) {
           hazardPt = targetSeg.coordinates[Math.floor(targetSeg.coordinates.length / 2)];
+          hazardEdgeId = targetSeg.edge_id || null;
         }
       }
       if (!hazardPt && rec.path_coordinates && rec.path_coordinates.length > 0) {
@@ -611,7 +615,9 @@ async function simulateRouteHazard() {
     showToast(`💥 <b>Simulating Hazard on Active Route...</b><br>Injecting rockfall failure at coordinates [${hazardPt[0].toFixed(3)}, ${hazardPt[1].toFixed(3)}]...`, 3000);
 
     // Inject point hazard at this sector
-    await triggerPointHazard(hazardPt[0], hazardPt[1], 'landslide');
+    // Pass the selected route segment ID as well as its point.  A coordinate-only
+    // lookup can choose a crossing or adjacent corridor instead of this route.
+    await triggerPointHazard(hazardPt[0], hazardPt[1], 'landslide', hazardEdgeId);
 
     // Focus map on the hazard area
     if (window.map) {
@@ -628,7 +634,6 @@ async function simulateRouteHazard() {
   }
 }
 window.simulateRouteHazard = simulateRouteHazard;
-
 
 
 
