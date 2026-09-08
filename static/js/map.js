@@ -175,31 +175,6 @@ function initMapInteractivity() {
       }
       return;
     }
-
-    const popupContent = `
-      <div style="font-family: Outfit, sans-serif; font-size: 13px; line-height: 1.4; min-width: 210px;">
-        <div style="font-weight: 700; color: #00f0ff; margin-bottom: 2px;">📍 Selected Map Sector</div>
-        <div style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">Lat: ${lat} · Lng: ${lng}</div>
-        <div style="display: flex; flex-direction: column; gap: 6px;">
-          <button class="user-nav-btn-go" style="background: linear-gradient(135deg, #ef4444, #dc2626); border-color: #f87171; color: #fff; padding: 6px 10px; font-weight: 700; font-size: 11px; box-shadow: 0 2px 10px rgba(239,68,68,0.4);" onclick="promptTriggerPointHazard(${lat}, ${lng})">
-            💥 Simulate Hazard Here
-          </button>
-          <div style="display: flex; gap: 4px;">
-            <button class="user-nav-btn-go" style="flex: 1; padding: 4px 6px; font-size: 10px;" onclick="setRouteCoordinate('source', ${lat}, ${lng}, 'Map Point (${lat}, ${lng})')">
-              🚩 Set Origin
-            </button>
-            <button class="user-nav-btn-go" style="flex: 1; padding: 4px 6px; font-size: 10px;" onclick="setRouteCoordinate('dest', ${lat}, ${lng}, 'Map Point (${lat}, ${lng})')">
-              🏁 Set Dest
-            </button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    L.popup()
-      .setLatLng(e.latlng)
-      .setContent(popupContent)
-      .openOn(map);
   });
 }
 
