@@ -129,16 +129,6 @@
     <section class="map-viewport">
       <div id="leaflet-map"></div>
 
-      <!-- Floating Google Maps Navigation Search (Active in User/Citizen Mode) -->
-      <div class="user-nav-floating-search" id="user-nav-search-widget">
-        <div class="user-nav-search-bar">
-          <span class="user-nav-search-icon">📍</span>
-          <input type="text" id="user-destination-input" class="user-nav-input" placeholder="Search destination (e.g. Kohima, Tawang, Imphal, Shillong, Saraighat)..." oninput="onDestinationSearchInput(this.value)" onfocus="showSearchDropdown()">
-          <button class="user-nav-btn-go" onclick="onQuickNavigateClick()">Navigate ➔</button>
-        </div>
-        <div class="user-search-suggestions" id="user-search-suggestions-dropdown" style="display: none;"></div>
-      </div>
-
       <!-- Floating Active Turn HUD -->
       <div class="user-active-nav-hud" id="user-active-nav-hud" style="display: none;">
         <div class="user-nav-hud-header">
@@ -213,45 +203,45 @@
         </div>
       </div>
 
-      <!-- Floating Basemap Style Switcher (100% Free - No API Keys) -->
-      <div class="map-floating-basemap-switcher">
-        <button id="btn-basemap-dark" class="basemap-btn active" onclick="setBasemapStyle('dark')">
-          🌙 Dark Matrix
-        </button>
-        <button id="btn-basemap-osm" class="basemap-btn" onclick="setBasemapStyle('osm')">
-          🗺️ Street OSM
-        </button>
-        <button id="btn-basemap-satellite" class="basemap-btn" onclick="setBasemapStyle('satellite')">
-          🛰️ Satellite Topo
-        </button>
-      </div>
+      <!-- Floating Map Header Controls (Top-Left Stacked Vertically) -->
+      <div class="map-floating-top-left-stack">
+        <!-- Row 1: Layer Controls -->
+        <div class="map-floating-layers">
+          <button id="btn-pin-mode" class="layer-toggle-btn" onclick="togglePinDropMode(this)" title="Drop custom Origin and Destination pins anywhere on the map">
+            📌 Pin Route Mode
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('highways', this)">
+            🛣️ Highways
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('bridges', this)">
+            🌉 Bridges
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('fleet', this)">
+            🚚 Active Fleet
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('districts', this)">
+            📍 Districts
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('hazards', this)">
+            ⛰️ Landslides
+          </button>
+          <button class="layer-toggle-btn active" onclick="toggleMapLayer('weather', this)">
+            🌧️ Doppler Radar
+          </button>
+        </div>
 
-      <!-- Floating Map Layer Controls -->
-      <div class="map-floating-layers">
-        <button id="btn-pin-mode" class="layer-toggle-btn" onclick="togglePinDropMode(this)" title="Drop custom Origin and Destination pins anywhere on the map">
-          📌 Pin Route Mode
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('highways', this)">
-          🛣️ Highways
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('bridges', this)">
-          🌉 Bridges
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('fleet', this)">
-          🚚 Active Fleet
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('districts', this)">
-          📍 Districts
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('hazards', this)">
-          ⛰️ Landslide Zones
-        </button>
-        <button class="layer-toggle-btn active" onclick="toggleMapLayer('weather', this)">
-          🌧️ Doppler Radar
-        </button>
-        <button class="layer-toggle-btn" onclick="openMapSettingsModal()" title="Map providers & optional API tokens">
-          ⚙️ Map APIs
-        </button>
+        <!-- Row 2: Basemap Style Switcher -->
+        <div class="map-floating-basemap-switcher">
+          <button id="btn-basemap-dark" class="basemap-btn active" onclick="setBasemapStyle('dark')">
+            🌙 Dark Matrix
+          </button>
+          <button id="btn-basemap-osm" class="basemap-btn" onclick="setBasemapStyle('osm')">
+            🗺️ Street OSM
+          </button>
+          <button id="btn-basemap-satellite" class="basemap-btn" onclick="setBasemapStyle('satellite')">
+            🛰️ Satellite Topo
+          </button>
+        </div>
       </div>
 
 

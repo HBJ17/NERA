@@ -436,35 +436,53 @@ body {
   background: rgba(13, 18, 31, 0.95) !important;
 }
 
-/* Floating Layer Control on Map */
-.map-floating-layers {
+.leaflet-control-zoom {
+  display: none !important;
+}
+
+/* Floating Controls Stacked in Top-Left of Map */
+.map-floating-top-left-stack {
   position: absolute;
-  top: 15px;
-  left: 15px;
+  top: 14px;
+  left: 14px;
   z-index: 500;
-  background: rgba(13, 18, 31, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  pointer-events: none;
+}
+
+.map-floating-layers {
+  position: relative;
+  pointer-events: auto;
+  background: rgba(13, 18, 31, 0.88);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
-  padding: 8px 12px;
+  padding: 6px 10px;
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 6px;
   box-shadow: var(--shadow-card);
+  flex-wrap: wrap;
 }
 
 .layer-toggle-btn {
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-secondary);
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   font-weight: 600;
-  padding: 6px 10px;
+  padding: 5px 9px;
   border-radius: var(--radius-md);
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  white-space: nowrap;
   transition: all 0.2s;
+  flex-shrink: 0;
 }
 
 .layer-toggle-btn:hover {
@@ -478,12 +496,11 @@ body {
   color: var(--accent-cyan);
 }
 
-/* Floating Basemap Style Switcher */
+/* Floating Basemap Style Switcher (Row 2 below Layer Controls) */
 .map-floating-basemap-switcher {
-  position: absolute;
-  top: 14px;
-  right: 14px;
-  z-index: 500;
+  position: relative;
+  pointer-events: auto;
+  flex-shrink: 0;
   background: rgba(13, 18, 31, 0.88);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-subtle);
@@ -506,6 +523,7 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  white-space: nowrap;
   transition: all 0.2s;
 }
 

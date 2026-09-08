@@ -9,6 +9,6 @@ services:
       - .:/app
     environment:
       - PORT=8000
-      - DEBUG=False
+      - DEBUG=True
     restart: unless-stopped
 

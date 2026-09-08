@@ -39,15 +39,14 @@ function initDigitalTwinMap() {
     zoom: 7,
     minZoom: 5,
     maxZoom: 18,
-    zoomControl: true
+    zoomControl: false
   });
   window.map = map;
 
   // Base Map Options (100% Free - Zero API Key Required)
-  baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    subdomains: 'abcd',
-    attribution: '&copy; <a href="https://carto.com/">CARTO</a> | &copy; OpenStreetMap contributors',
-    maxZoom: 19
+  baseLayers.dark = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+    attribution: '&copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+    maxZoom: 16
   });
 
   baseLayers.osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
